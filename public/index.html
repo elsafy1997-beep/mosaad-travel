@@ -22,16 +22,21 @@
   <nav><ul id="nav">
     <li><a href="#home">الرئيسية</a></li>
     <li><a href="#plan">خطط رحلتك</a></li>
+    <li><a href="#trip-planner">جدول رحلتك</a></li>
     <li><a href="#services">الخدمات</a></li>
-    <li><a href="#destinations">الوجهات</a></li>
-    <li><a href="#hotels">الفنادق</a></li>
     <li><a href="#events">الفعاليات</a></li>
-    <li><a href="#study">الدراسة</a></li>
+    <li><a href="#hotels">الفنادق</a></li>
     <li><a href="#restaurants">مطاعم</a></li>
+    <li><a href="#destinations">الوجهات</a></li>
+    <li><a href="#study">الدراسة</a></li>
+    <li><a href="#medical">العلاج</a></li>
     <li><a href="#contact">تواصل</a></li>
   </ul></nav>
   <button class="burger" id="burger">☰</button>
 </header>
+
+<!-- ===== إعلانات علوية ===== -->
+<div id="adsTopContainer" class="ads-container ads-top"></div>
 
 <section class="hero" id="home">
   <div class="hero-inner">
@@ -44,48 +49,7 @@
   </div>
 </section>
 
-<section id="services">
-  <div class="sec-head"><span class="tag">خدماتنا</span><h2>كل ما تحتاجه في روسيا في مكان واحد</h2><p>اختر الخدمة التي تناسبك وسنتولى الباقي.</p></div>
-  <div class="grid g-4" id="servicesGrid"></div>
-</section>
-
-<section id="destinations" style="background:#fff">
-  <div class="sec-head"><span class="tag">اكتشف روسيا</span><h2>وجهات ستحبها</h2></div>
-  <div class="grid g-4" id="destGrid"></div>
-</section>
-
-<section id="hotels">
-  <div class="sec-head"><span class="tag">الفنادق</span><h2>فنادق مختارة بعناية</h2><p>من 3 إلى 5 نجوم في أفضل المواقع.</p></div>
-  <div class="grid g-3" id="hotelsGrid"></div>
-</section>
-
-<section id="events" style="background:#fff">
-  <div class="sec-head"><span class="tag">الفعاليات</span><h2>فعاليات في روسيا</h2><p>اكتشف الفعاليات في أشهر المدن الروسية.</p></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin-bottom:24px;font-weight:900;">فعاليات موسكو</h3>
-  <div class="grid g-3" id="eventsMoscow"></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">فعاليات سوتشي</h3>
-  <div class="grid g-3" id="eventsSochi"></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">فعاليات أخرى</h3>
-  <div class="grid g-3" id="eventsOther"></div>
-</section>
-
-<section id="study">
-  <div class="sec-head"><span class="tag">الدراسة في روسيا</span><h2>ابحث عن جامعتك</h2><p>نساعدك في اختيار الجامعة والتخصص والتقديم.</p></div>
-  <div class="grid g-3" id="uniGrid"></div>
-</section>
-
-<section id="restaurants" style="background:#fff">
-  <div class="sec-head"><span class="tag">المطاعم</span><h2>أفضل المطاعم في روسيا</h2><p>اكتشف أفضل المطاعم العربية والحلال في أشهر المدن الروسية.</p></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin-bottom:24px;font-weight:900;">مطاعم موسكو</h3>
-  <div class="grid g-3" id="restaurantsMoscow"></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">مطاعم سوتشي</h3>
-  <div class="grid g-3" id="restaurantsSochi"></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">مطاعم سانت بطرسبرغ</h3>
-  <div class="grid g-3" id="restaurantsSpb"></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">مطاعم أخرى</h3>
-  <div class="grid g-3" id="restaurantsOther"></div>
-</section>
-
+<!-- ====== REORDERED SECTIONS ====== -->
 <section id="plan" class="planner">
   <div class="sec-head"><span class="tag">مخطط الرحلة</span><h2>احسب تكلفة رحلتك</h2><p>أضف فنادق متعددة في مدن مختلفة حسب خط سير رحلتك.</p></div>
   <div class="planner-box">
@@ -125,6 +89,131 @@
   </div>
 </section>
 
+<section id="trip-planner" style="background:#f8fafc;padding:80px 5%;">
+  <div class="sec-head">
+    <span class="tag">مخطط الرحلة</span>
+    <h2>جدول رحلتك يوماً بيوم</h2>
+    <p>ابنِ جدول رحلتك بنفسك: أضف الأيام والأنشطة، وسنحفظه ونرسله لك على واتساب.</p>
+  </div>
+
+  <div class="planner-box" style="max-width:1000px;">
+
+    <!-- Quick Add Buttons -->
+    <div style="text-align:center;margin-bottom:24px;">
+      <button type="button" class="btn btn-navy" onclick="loadTripTemplate()" style="margin:0 6px 8px 0;">📋 ابدأ بقالب جاهز</button>
+      <button type="button" class="btn btn-navy" onclick="addTripDay()" style="margin:0 6px 8px 0;">+ إضافة يوم جديد</button>
+      <button type="button" class="btn btn-gold" onclick="clearTrip()" style="margin:0 6px 8px 0;">🗑️ مسح الكل</button>
+    </div>
+
+    <!-- Days Container -->
+    <div id="tripDaysContainer"></div>
+
+    <!-- Client Info + Actions -->
+    <div id="tripFooter" style="display:none;margin-top:30px;background:#fff;padding:24px;border-radius:16px;box-shadow:var(--shadow);">
+      <h3 style="margin-bottom:16px;color:var(--navy);font-size:1.1rem;">📋 بياناتك</h3>
+      <div class="steps" style="margin-bottom:16px;">
+        <div class="field"><label>الاسم *</label><input type="text" id="tripName" placeholder="اسمك الكامل" required></div>
+        
+        
+        <div class="field"><label>عدد الأشخاص</label><input type="number" id="tripPersons" min="1" value="2"></div>
+      </div>
+      <div class="steps" style="margin-bottom:16px;">
+        <div class="field"><label>تاريخ البداية</label><input type="date" id="tripStartDate"></div>
+        <div class="field"><label>تاريخ النهاية</label><input type="date" id="tripEndDate"></div>
+      </div>
+      <div class="field"><label>ملاحظات إضافية</label><textarea id="tripNotes" rows="2" placeholder="أي طلبات خاصة؟"></textarea></div>
+
+      <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-gold" onclick="submitTripPlan()" style="flex:1;min-width:200px;">📤 أرسل الجدول على واتساب</button>
+        
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="services">
+  <div class="sec-head"><span class="tag">خدماتنا</span><h2>كل ما تحتاجه في روسيا في مكان واحد</h2><p>اختر الخدمة التي تناسبك وسنتولى الباقي.</p></div>
+  <div class="grid g-4" id="servicesGrid"></div>
+</section>
+
+<section id="events" style="background:#fff">
+  <div class="sec-head"><span class="tag">الفعاليات</span><h2>فعاليات في روسيا</h2><p>اكتشف الفعاليات في أشهر المدن الروسية.</p></div>
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin-bottom:24px;font-weight:900;">فعاليات موسكو</h3>
+  <div class="grid g-3" id="eventsMoscow"></div>
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">فعاليات سوتشي</h3>
+  <div class="grid g-3" id="eventsSochi"></div>
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">فعاليات أخرى</h3>
+  <div class="grid g-3" id="eventsOther"></div>
+</section>
+
+<section id="hotels">
+  <div class="sec-head"><span class="tag">الفنادق</span><h2>فنادق مختارة بعناية</h2><p>من 3 إلى 5 نجوم في أفضل المواقع.</p></div>
+  <div class="grid g-3" id="hotelsGrid"></div>
+</section>
+
+<section id="restaurants" style="background:#fff">
+  <div class="sec-head"><span class="tag">المطاعم</span><h2>أفضل المطاعم في روسيا</h2><p>اكتشف أفضل المطاعم العربية والحلال في أشهر المدن الروسية.</p></div>
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin-bottom:24px;font-weight:900;">مطاعم موسكو</h3>
+  <div class="grid g-3" id="restaurantsMoscow"></div>
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">مطاعم سوتشي</h3>
+  <div class="grid g-3" id="restaurantsSochi"></div>
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">مطاعم سانت بطرسبرغ</h3>
+  <div class="grid g-3" id="restaurantsSpb"></div>
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">مطاعم أخرى</h3>
+  <div class="grid g-3" id="restaurantsOther"></div>
+</section>
+
+<section id="destinations" style="background:#fff">
+  <div class="sec-head"><span class="tag">اكتشف روسيا</span><h2>وجهات ستحبها</h2></div>
+  <div class="grid g-4" id="destGrid"></div>
+</section>
+
+<section id="study">
+  <div class="sec-head"><span class="tag">الدراسة في روسيا</span><h2>ابحث عن جامعتك</h2><p>نساعدك في اختيار الجامعة والتخصص والتقديم.</p></div>
+  <div class="grid g-3" id="uniGrid"></div>
+</section>
+
+<section id="medical" style="background:#fff;padding:80px 5%;">
+  <div class="sec-head">
+    <span class="tag">العلاج</span>
+    <h2>العلاج في روسيا</h2>
+    <p>مستشفيات وعيادات مختارة بعناية لخدمة السياح العرب.</p>
+  </div>
+
+  <div class="grid g-3" id="medicalGrid"></div>
+</section>
+
+<!-- removed -->
+
+<!-- ===== إعلانات وسطى ===== -->
+<div id="adsMiddleContainer" class="ads-container ads-middle"></div>
+
+<!-- removed -->
+
+<!-- removed -->
+
+<!-- removed -->
+
+<!-- removed -->
+
+<!-- removed -->
+
+<!-- removed -->
+
+<!-- ===== العلاج ===== -->
+<!-- removed -->
+
+<!-- ===== جدول رحلتك ===== -->
+<!-- removed -->
+
+<!-- removed -->
+
+<!-- ===== إعلانات سفلية ===== -->
+<div id="adsBottomContainer" class="ads-container ads-bottom"></div>
+
+
+<!-- ===== تواصل معنا ===== -->
 <section id="contact" class="contact">
   <div class="sec-head"><span class="tag">تواصل معنا</span><h2>نحن هنا لخدمتك</h2><p>راسلنا عبر واتساب أو أرسل نموذج التواصل.</p></div>
   <div class="contact-grid">
@@ -202,6 +291,11 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- ===== Modal (لنافذة اختيار القوالب وغيرها) ===== -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modalContent"></div>
+</div>
 <script src="/app.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

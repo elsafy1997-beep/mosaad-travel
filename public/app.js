@@ -677,6 +677,489 @@ window.addEventListener('load', () => {
   }
 });
 
+/* ============ ADS ============ */
+let AD_VIEWED = JSON.parse(localStorage.getItem('mosaad_ads_viewed') || '{}');
+
+function isAdClosed(id) {
+  const today = new Date().toISOString().split('T')[0];
+  return AD_VIEWED[id] === today;
+}
+function markAdClosed(id) {
+  const today = new Date().toISOString().split('T')[0];
+  AD_VIEWED[id] = today;
+  localStorage.setItem('mosaad_ads_viewed', JSON.stringify(AD_VIEWED));
+}
+
+async function loadAds() {
+  try {
+    const [top, middle, bottom] = await Promise.all([
+      api('/api/ads?position=top'),
+      api('/api/ads?position=middle'),
+      api('/api/ads?position=bottom')
+    ]);
+
+    renderAds('adsTopContainer', top, 'top');
+    renderAds('adsMiddleContainer', middle, 'middle');
+    renderAds('adsBottomContainer', bottom, 'bottom');
+  } catch (e) {
+    console.warn('Ads failed to load', e);
+  }
+}
+
+function renderAds(containerId, ads, position) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const visible = ads.filter(a => !isAdClosed(a.id));
+  if (!visible.length) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = '';
+  container.innerHTML = visible.map(ad => `
+    <a class="ad-card ad-card-${position}" data-ad-id="${ad.id}" href="javascript:void(0)"
+       style="background:${ad.bg_color || '#0a1f44'};color:${ad.text_color || '#fff'}"
+       onclick="handleAdClick(event, ${ad.id}, '${(ad.action_type || 'link').replace(/'/g, "\\'")}', '${(ad.action_value || '').replace(/'/g, "\\'")}')">
+      <button class="ad-close" onclick="closeAd(event, ${ad.id})" title="إغلاق">✕</button>
+      ${ad.image ? `<img class="ad-image" src="${ad.image}" alt="${ad.title}" loading="lazy">` : ''}
+      <div class="ad-body">
+        <div class="ad-title">
+          <span class="ad-badge">إعلان</span>
+          ${ad.title}
+        </div>
+        ${ad.description ? `<div class="ad-description">${ad.description}</div>` : ''}
+      </div>
+      ${ad.button_text ? `<div class="ad-button">${ad.button_text}</div>` : ''}
+    </a>
+  `).join('');
+
+  // Track impressions
+  visible.forEach(ad => {
+    api('/api/ads/' + ad.id + '/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'impression' })
+    }).catch(() => {});
+  });
+}
+
+window.closeAd = function(event, id) {
+  event.stopPropagation();
+  event.preventDefault();
+  markAdClosed(id);
+  const card = document.querySelector(`.ad-card[data-ad-id="${id}"]`);
+  if (card) {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(-10px)';
+    setTimeout(() => {
+      const container = card.parentElement;
+      card.remove();
+      if (container && !container.querySelector('.ad-card')) {
+        container.style.display = 'none';
+      }
+    }, 300);
+  }
+};
+
+window.handleAdClick = function(event, id, actionType, actionValue) {
+  event.preventDefault();
+  // Track click
+  api('/api/ads/' + id + '/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'click' })
+  }).catch(() => {});
+
+  if (!actionValue) return;
+
+  if (actionType === 'whatsapp') {
+    const num = (actionValue || SETTINGS.whatsapp_number || '').replace(/\D/g, '');
+    const msg = 'مرحباً، شاهدت إعلانكم على منصة مُساعد وأريد الاستفسار.';
+    window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
+  } else if (actionType === 'page') {
+    window.location.href = actionValue;
+  } else {
+    // link
+    const url = actionValue.startsWith('http') ? actionValue : 'https://' + actionValue;
+    window.open(url, '_blank');
+  }
+};
+
+/* ============ TRIP PLANNER ============ */
+let tripDays = [];
+let tripDayCounter = 0;
+
+window.addTripDay = function() {
+  tripDayCounter++;
+  tripDays.push({
+    id: 'd' + tripDayCounter,
+    date: '',
+    activities: []
+  });
+  renderTripDays();
+};
+
+window.removeTripDay = function(dayId) {
+  if (!confirm('حذف هذا اليوم؟')) return;
+  tripDays = tripDays.filter(d => d.id !== dayId);
+  renderTripDays();
+};
+
+window.moveTripDay = function(dayId, direction) {
+  const idx = tripDays.findIndex(d => d.id === dayId);
+  if (idx < 0) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= tripDays.length) return;
+  const tmp = tripDays[idx];
+  tripDays[idx] = tripDays[newIdx];
+  tripDays[newIdx] = tmp;
+  renderTripDays();
+};
+
+window.updateTripDayDate = function(dayId, value) {
+  const d = tripDays.find(x => x.id === dayId);
+  if (d) d.date = value;
+};
+
+window.addTripActivity = function(dayId) {
+  const d = tripDays.find(x => x.id === dayId);
+  if (!d) return;
+  d.activities.push({
+    id: 'a' + Date.now() + Math.random().toString(36).slice(2, 6),
+    time_slot: 'صباحاً',
+    title: '',
+    description: '',
+    location: ''
+  });
+  renderTripDays();
+};
+
+window.removeTripActivity = function(dayId, actId) {
+  const d = tripDays.find(x => x.id === dayId);
+  if (!d) return;
+  d.activities = d.activities.filter(a => a.id !== actId);
+  renderTripDays();
+};
+
+window.updateTripActivity = function(dayId, actId, field, value) {
+  const d = tripDays.find(x => x.id === dayId);
+  if (!d) return;
+  const a = d.activities.find(x => x.id === actId);
+  if (!a) return;
+  a[field] = value;
+};
+
+window.clearTrip = function() {
+  if (!confirm('مسح كل الأيام والأنشطة؟')) return;
+  tripDays = [];
+  tripDayCounter = 0;
+  renderTripDays();
+  document.getElementById('tripFooter').style.display = 'none';
+};
+
+window.loadTripTemplate = async function() {
+  if (tripDays.length && !confirm('سيتم استبدال الجدول الحالي. متابعة؟')) return;
+  try {
+    const r = await fetch('/api/trip-templates');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const templates = await r.json();
+    if (!templates.length) {
+      toast('لا توجد قوالب متاحة حالياً', 'err');
+      return;
+    }
+    openTemplatePicker(templates);
+  } catch (e) {
+    console.error('فشل تحميل القوالب:', e);
+    toast('فشل تحميل القوالب: ' + e.message, 'err');
+  }
+};
+
+window.openTemplatePicker = function(templates) {
+  const html = '<h2>اختر قالباً</h2>' +
+    '<div style="display:grid;gap:12px;max-height:60vh;overflow-y:auto;">' +
+    templates.map((t, i) => {
+      const days = new Set((t.activities || []).map(a => +a.day_number || 1)).size;
+      const acts = (t.activities || []).length;
+      return '<div data-tpl-idx="' + i + '" style="background:#f8fafc;padding:16px;border-radius:12px;border:2px solid var(--border);cursor:pointer;transition:.2s;" onmouseover="this.style.borderColor=\'var(--gold)\';this.style.background=\'#fff9e6\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'#f8fafc\'">' +
+        '<h4 style="color:var(--navy);margin-bottom:6px;">📋 ' + t.name + '</h4>' +
+        (t.description ? '<p style="font-size:.9rem;color:var(--gray);margin-bottom:10px;">' + t.description + '</p>' : '') +
+        '<div style="display:flex;gap:14px;font-size:.85rem;color:var(--gray);">' +
+          '<span>📅 ' + days + ' أيام</span>' +
+          '<span>✓ ' + acts + ' أنشطة</span>' +
+          (t.city ? '<span>📍 ' + t.city + '</span>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('') +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="icon-btn" onclick="document.getElementById(\'modalBg\').classList.remove(\'show\')">إلغاء</button>' +
+    '</div>';
+
+  $('#modalContent').innerHTML = html;
+  $('#modalBg').classList.add('show');
+
+  document.querySelectorAll('[data-tpl-idx]').forEach(el => {
+    el.onclick = () => {
+      const idx = +el.dataset.tplIdx;
+      applyTemplate(templates[idx]);
+      document.getElementById('modalBg').classList.remove('show');
+    };
+  });
+};
+
+window.applyTemplate = function(template) {
+  if (!template.activities || !template.activities.length) {
+    toast('القالب فارغ', 'err');
+    return;
+  }
+  // Group by day
+  const byDay = {};
+  template.activities.forEach(a => {
+    const dn = +a.day_number || 1;
+    if (!byDay[dn]) byDay[dn] = [];
+    byDay[dn].push(a);
+  });
+
+  tripDays = [];
+  Object.keys(byDay).sort((a,b) => +a - +b).forEach(dn => {
+    tripDays.push({
+      id: 'd' + Math.random().toString(36).slice(2, 9),
+      date: '',
+      activities: byDay[dn].map(a => ({
+        id: 'a' + Math.random().toString(36).slice(2, 9),
+        time_slot: a.time_slot || 'صباحاً',
+        title: a.title || '',
+        description: a.description || '',
+        location: a.location || ''
+      }))
+    });
+  });
+  tripDayCounter = tripDays.length;
+
+  renderTripDays();
+  toast('تم تحميل القالب: ' + template.name, 'ok');
+};
+
+function renderTripDays() {
+  const container = document.getElementById('tripDaysContainer');
+  const footer = document.getElementById('tripFooter');
+  if (!container) return;
+
+  if (!tripDays.length) {
+    container.innerHTML = '<div class="trip-empty">لم تضف أي يوم بعد. اضغط "إضافة يوم جديد" للبدء.</div>';
+    if (footer) footer.style.display = 'none';
+    return;
+  }
+  if (footer) footer.style.display = 'block';
+
+  const timeSlots = ['صباحاً', 'ظهراً', 'مساءً', 'ليلاً'];
+
+  container.innerHTML = tripDays.map((day, idx) => {
+    const actsHtml = day.activities.length
+      ? day.activities.map(a => `
+        <div class="trip-activity">
+          <div class="trip-activity-fields">
+            <div class="trip-activity-row">
+              <select onchange="updateTripActivity('${day.id}','${a.id}','time_slot',this.value)">
+                ${timeSlots.map(t => `<option value="${t}" ${a.time_slot === t ? 'selected' : ''}>${t}</option>`).join('')}
+              </select>
+              <input type="text" placeholder="عنوان النشاط (مثال: جولة الكرملين)" value="${(a.title || '').replace(/"/g, '&quot;')}" onchange="updateTripActivity('${day.id}','${a.id}','title',this.value)">
+              <input type="text" placeholder="الموقع (اختياري)" value="${(a.location || '').replace(/"/g, '&quot;')}" onchange="updateTripActivity('${day.id}','${a.id}','location',this.value)">
+            </div>
+            <textarea rows="2" placeholder="تفاصيل إضافية (اختياري)" onchange="updateTripActivity('${day.id}','${a.id}','description',this.value)">${a.description || ''}</textarea>
+          </div>
+          <button class="trip-activity-delete" onclick="removeTripActivity('${day.id}','${a.id}')" title="حذف النشاط">✕</button>
+        </div>
+      `).join('')
+      : '<p style="text-align:center;color:var(--gray);font-size:.85rem;padding:10px;">لا توجد أنشطة بعد</p>';
+
+    return `
+      <div class="trip-day">
+        <div class="trip-day-header">
+          <div class="trip-day-title">
+            <div class="trip-day-number">${idx + 1}</div>
+            <div class="trip-day-info">
+              <h4>اليوم ${idx + 1}</h4>
+              <input type="date" class="day-date-input" value="${day.date}" onchange="updateTripDayDate('${day.id}', this.value)">
+            </div>
+          </div>
+          <div class="trip-day-actions">
+            <button class="trip-day-btn up" onclick="moveTripDay('${day.id}', -1)" title="أعلى">↑</button>
+            <button class="trip-day-btn down" onclick="moveTripDay('${day.id}', 1)" title="أسفل">↓</button>
+            <button class="trip-day-btn del" onclick="removeTripDay('${day.id}')" title="حذف اليوم">✕</button>
+          </div>
+        </div>
+        <div class="trip-activities">${actsHtml}</div>
+        <button class="trip-add-activity" onclick="addTripActivity('${day.id}')">+ إضافة نشاط لهذا اليوم</button>
+      </div>
+    `;
+  }).join('');
+}
+
+window.submitTripPlan = async function() {
+  const name = document.getElementById('tripName').value.trim();
+
+
+  const persons = +document.getElementById('tripPersons').value || 1;
+  const startDate = document.getElementById('tripStartDate').value;
+  const endDate = document.getElementById('tripEndDate').value;
+  const notes = document.getElementById('tripNotes').value.trim();
+
+  if (!name) { toast('الاسم مطلوب', 'err'); return; }
+
+  if (!tripDays.length) { toast('أضف يوماً واحداً على الأقل', 'err'); return; }
+
+  // Collect all activities
+  const activities = [];
+  tripDays.forEach((day, idx) => {
+    day.activities.forEach(a => {
+      if (!a.title && !a.description) return;
+      activities.push({
+        day_number: idx + 1,
+        day_date: day.date || null,
+        time_slot: a.time_slot || '',
+        title: a.title || '',
+        description: a.description || '',
+        location: a.location || ''
+      });
+    });
+  });
+
+  if (!activities.length) { toast('أضف نشاطاً واحداً على الأقل', 'err'); return; }
+
+  const payload = {
+    client_name: name,
+    client_whatsapp: "",
+
+    persons,
+    start_date: startDate || null,
+    end_date: endDate || null,
+    notes,
+    activities
+  };
+
+  try {
+    const r = await api('/api/trip-plans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    toast('تم حفظ جدولك بنجاح — رقم: ' + r.code, 'ok');
+
+    // Build WhatsApp message
+    const lines = [];
+    lines.push('السلام عليكم، هذا جدول رحلتي عبر مُساعد.');
+    lines.push('');
+    lines.push('رقم الجدول: ' + r.code);
+    lines.push('الاسم: ' + name);
+
+    lines.push('عدد الأشخاص: ' + persons);
+    if (startDate || endDate) lines.push('الفترة: ' + (startDate || '—') + ' الى ' + (endDate || '—'));
+    lines.push('');
+    lines.push('=== الجدول ===');
+    lines.push('');
+
+    tripDays.forEach((day, idx) => {
+      lines.push('اليوم ' + (idx + 1) + (day.date ? ' (' + day.date + ')' : '') + ':');
+      day.activities.forEach(a => {
+        if (!a.title && !a.description) return;
+        let line = '- ' + (a.time_slot ? '[' + a.time_slot + '] ' : '');
+        line += a.title || a.description;
+        if (a.location) line += ' — ' + a.location;
+        lines.push(line);
+      });
+      lines.push('');
+    });
+
+    if (notes) {
+      lines.push('ملاحظات: ' + notes);
+      lines.push('');
+    }
+    lines.push('أرجو تأكيد التوفر والترتيب.');
+
+    const message = lines.join('\n');
+
+    setTimeout(() => {
+      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(message), '_blank');
+    }, 700);
+  } catch (e) {
+    toast(e.error || 'حدث خطأ', 'err');
+  }
+};
+
+/* ============ MEDICAL ============ */
+async function loadMedical() {
+  try {
+    const r = await fetch('/api/medical');
+    const list = await r.json();
+
+    const renderCard = (c) => {
+      const typeLabel = c.type === 'hospital' ? 'مستشفى' : c.type === 'clinic' ? 'عيادة' : c.type === 'dentist' ? 'عيادة أسنان' : c.type === 'cosmetic' ? 'عيادة تجميل' : c.type;
+      return '<div class="card">' +
+        '<div class="card-img"><img src="' + (c.image || 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800') + '" alt="' + c.name + '" loading="lazy"></div>' +
+        '<div class="card-body">' +
+          '<h3>' + c.name + '</h3>' +
+          '<p style="color:var(--gold);font-weight:700;">' + typeLabel + ' - ' + (c.specialization || 'عام') + '</p>' +
+          '<p style="color:var(--gray);font-size:.85rem;">📍 ' + c.city + '</p>' +
+          (c.description ? '<p>' + c.description + '</p>' : '<p style="min-height:20px;"></p>') +
+          '<div class="card-foot">' +
+            '<button class="btn btn-navy" onclick="requestMedical(' + c.id + ')">احجز الآن</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    };
+
+    const emptyMsg = '<p style="text-align:center;color:var(--gray);grid-column:1/-1;padding:40px;">لا توجد مستشفيات أو عيادات متاحة حالياً.</p>';
+
+    const grid = document.getElementById('medicalGrid');
+    if (grid) grid.innerHTML = list.length ? list.map(renderCard).join('') : emptyMsg;
+  } catch (e) {
+    console.warn('Medical load failed', e);
+  }
+}
+
+window.requestMedical = async function(id) {
+  try {
+    const r = await fetch('/api/medical');
+    const list = await r.json();
+    const c = list.find(x => x.id === id);
+    if (!c) return;
+
+    const typeLabel = c.type === 'hospital' ? 'مستشفى' : c.type === 'clinic' ? 'عيادة' : c.type === 'dentist' ? 'عيادة أسنان' : c.type === 'cosmetic' ? 'تجميل' : c.type;
+
+    let msg = 'السلام عليكم، أرغب بحجز موعد في:';
+    msg += '\n\n';
+    msg += 'المنشأة: ' + c.name + '\n';
+    msg += 'النوع: ' + typeLabel + '\n';
+    msg += 'المدينة: ' + c.city;
+    if (c.specialization) msg += '\nالتخصص: ' + c.specialization;
+    msg += '\n\nأرجو التواصل لتحديد موعد.';
+
+    // Save lead
+    try {
+      await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'عميل من الموقع',
+          phone: '-', whatsapp: '-', country: '-',
+          persons: 1, city: c.city,
+          services: [{ type: 'medical', id: c.id, name: c.name }],
+          estimated_rub: 0,
+          notes: 'حجز: ' + c.name
+        })
+      });
+    } catch (e) { /* ignore */ }
+
+    toast('جارٍ فتح WhatsApp...', 'ok');
+    setTimeout(() => {
+      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+    }, 500);
+  } catch (e) {
+    toast('خطأ', 'err');
+  }
+};
+
 (async () => {
   try {
     await loadSettings();
@@ -705,7 +1188,7 @@ window.addEventListener('load', () => {
         </div>
       </div>`).join('');
 
-    await Promise.all([loadServices(), loadDestinations(), loadEvents(), loadRestaurants(), loadUniversities()]);
+    await Promise.all([loadServices(), loadDestinations(), loadEvents(), loadRestaurants(), loadUniversities(), loadAds(), loadMedical()]);
     fillPlanner();
   } catch (e) { console.error(e); toast('تعذر تحميل بعض البيانات', 'err'); }
 })();

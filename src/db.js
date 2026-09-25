@@ -61,6 +61,110 @@ export function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_restaurants_city ON restaurants(city);
 
+    CREATE TABLE IF NOT EXISTS ads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      image TEXT,
+      button_text TEXT DEFAULT 'اعرف المزيد',
+      action_type TEXT DEFAULT 'link',
+      action_value TEXT DEFAULT '',
+      position TEXT DEFAULT 'middle',
+      bg_color TEXT DEFAULT '#0a1f44',
+      text_color TEXT DEFAULT '#ffffff',
+      priority INTEGER DEFAULT 5,
+      date_from TEXT,
+      date_to TEXT,
+      manual_active INTEGER DEFAULT 1,
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_ads_position ON ads(position);
+    CREATE INDEX IF NOT EXISTS idx_ads_dates ON ads(date_from, date_to);
+    CREATE INDEX IF NOT EXISTS idx_ads_active ON ads(active);
+
+    CREATE TABLE IF NOT EXISTS ad_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ad_id INTEGER NOT NULL,
+      event_type TEXT NOT NULL,
+      ip TEXT DEFAULT '',
+      user_agent TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ad_events_ad ON ad_events(ad_id);
+    CREATE INDEX IF NOT EXISTS idx_ad_events_type ON ad_events(event_type);
+
+    CREATE TABLE IF NOT EXISTS trip_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE,
+      client_name TEXT DEFAULT '',
+      client_whatsapp TEXT DEFAULT '',
+      country TEXT DEFAULT '',
+      persons INTEGER DEFAULT 1,
+      start_date TEXT,
+      end_date TEXT,
+      notes TEXT DEFAULT '',
+      status TEXT DEFAULT 'new',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_trip_plans_status ON trip_plans(status);
+    CREATE INDEX IF NOT EXISTS idx_trip_plans_code ON trip_plans(code);
+
+    CREATE TABLE IF NOT EXISTS trip_activities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL,
+      day_number INTEGER NOT NULL,
+      day_date TEXT,
+      time_slot TEXT DEFAULT '',
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      location TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (plan_id) REFERENCES trip_plans(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_trip_activities_plan ON trip_activities(plan_id);
+
+    CREATE TABLE IF NOT EXISTS trip_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      city TEXT DEFAULT '',
+      days_count INTEGER DEFAULT 0,
+      sort_order INTEGER DEFAULT 0,
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_trip_templates_active ON trip_templates(active);
+
+    CREATE TABLE IF NOT EXISTS trip_template_activities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_id INTEGER NOT NULL,
+      day_number INTEGER NOT NULL,
+      time_slot TEXT DEFAULT '',
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      location TEXT DEFAULT '',
+      sort_order INTEGER DEFAULT 0,
+      FOREIGN KEY (template_id) REFERENCES trip_templates(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_trip_template_acts ON trip_template_activities(template_id);
+
+    CREATE TABLE IF NOT EXISTS medical_centers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      type TEXT DEFAULT 'hospital',
+      city TEXT NOT NULL,
+      specialization TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      image TEXT,
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_medical_city ON medical_centers(city);
+    CREATE INDEX IF NOT EXISTS idx_medical_type ON medical_centers(type);
+    CREATE INDEX IF NOT EXISTS idx_medical_active ON medical_centers(active);
+
     CREATE TABLE IF NOT EXISTS services (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL, description TEXT,
