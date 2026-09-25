@@ -238,7 +238,7 @@ app.get('/api/admin/stats', (req, res) => ok(res, {
   events_total:        db.prepare('SELECT COUNT(*) c FROM events').get().c,
   universities_total:  db.prepare('SELECT COUNT(*) c FROM universities').get().c,
   revenue_estimate:    db.prepare('SELECT COALESCE(SUM(estimated_rub),0) s FROM leads').get().s,
-  by_city:             db.prepare('SELECT city, COUNT(*) c FROM leads WHERE city<>"" GROUP BY city ORDER BY c DESC LIMIT 8').all(),
+  by_city:             db.prepare(`SELECT city, COUNT(*) c FROM leads WHERE city<>'' GROUP BY city ORDER BY c DESC LIMIT 8`).all(),
   recent_leads:        db.prepare('SELECT id,code,name,city,estimated_rub,status,created_at FROM leads ORDER BY id DESC LIMIT 5').all()
 }));
 
