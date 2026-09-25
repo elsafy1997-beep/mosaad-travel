@@ -8,6 +8,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a1f44">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="مساعد">
 </head>
 <body>
 <header id="hdr">
@@ -179,7 +186,29 @@
   <div class="foot-bottom">© <span id="yr"></span> مُساعد MOSAAD — جميع الحقوق محفوظة</div>
 </footer>
 <a href="#" class="whats-fab" id="whatsFab" target="_blank">WA</a>
+
+<button class="install-fab" id="installAppBtn" style="display:none;" onclick="installApp()">
+  <span class="install-icon">📲</span>
+  <span class="install-text">نزّل التطبيق الآن</span>
+</button>
+
+<div class="ios-install-tip" id="iosInstallTip" style="display:none;">
+  <div class="tip-box">
+    <h4>ثبّت التطبيق على iPhone</h4>
+    <p>1. اضغط زر المشاركة ⬆️ في الأسفل</p>
+    <p>2. اختر "إضافة إلى الشاشة الرئيسية"</p>
+    <p>3. اضغط "إضافة"</p>
+    <button onclick="document.getElementById('iosInstallTip').style.display='none'">فهمت</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script src="/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+  });
+}
+</script>
 </body>
 </html>

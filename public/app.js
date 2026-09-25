@@ -617,6 +617,66 @@ window.requestHotel = async (id) => {
 };
 window.removeHotelSegment = removeHotelSegment;
 
+/* ============ PWA INSTALL ============ */
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('installAppBtn');
+  if (btn) btn.style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  const btn = document.getElementById('installAppBtn');
+  if (btn) btn.style.display = 'none';
+  toast('تم تثبيت التطبيق بنجاح!', 'ok');
+  deferredInstallPrompt = null;
+});
+
+window.installApp = async function() {
+  // iPhone/iPad - لا يدعم prompt التلقائي
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  if (isStandalone) {
+    toast('التطبيق مثبت بالفعل', 'ok');
+    return;
+  }
+
+  if (isIOS) {
+    document.getElementById('iosInstallTip').style.display = 'flex';
+    return;
+  }
+
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    const result = await deferredInstallPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      toast('جارٍ تثبيت التطبيق...', 'ok');
+    }
+    deferredInstallPrompt = null;
+  } else {
+    // Fallback: تعليمات يدوية
+    alert('لتثبيت التطبيق:\n\n1. افتح قائمة المتصفح (3 نقاط)\n2. اختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية"\n3. اضغط تثبيت');
+  }
+};
+
+// إظهار الزر على كل الأجهزة غير المثبّتة
+window.addEventListener('load', () => {
+  const btn = document.getElementById('installAppBtn');
+  if (!btn) return;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (!isStandalone) {
+    // إظهار الزر بعد 3 ثوانٍ إذا لم يُطلق beforeinstallprompt
+    setTimeout(() => {
+      if (!deferredInstallPrompt) {
+        btn.style.display = 'flex';
+      }
+    }, 3000);
+  }
+});
+
 (async () => {
   try {
     await loadSettings();

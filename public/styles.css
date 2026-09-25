@@ -306,3 +306,103 @@ footer{background:#061530;color:#94a3b8;padding:60px 5% 24px}
 .svc:hover{
   border-color:var(--gold);
 }
+
+/* ===== Install App FAB ===== */
+.install-fab{
+  position:fixed;
+  bottom:100px;
+  left:24px;
+  z-index:900;
+  padding:14px 22px;
+  background:linear-gradient(135deg,#c9a227,#e0b93a);
+  color:#0a1f44;
+  border:none;
+  border-radius:50px;
+  font-family:inherit;
+  font-size:.95rem;
+  font-weight:900;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  box-shadow:0 10px 30px rgba(201,162,39,.55);
+  transition:.3s;
+  animation:bounceInstall 2.5s infinite;
+}
+.install-fab:hover{
+  transform:translateY(-4px) scale(1.05);
+  box-shadow:0 15px 40px rgba(201,162,39,.75);
+}
+.install-icon{
+  font-size:1.3rem;
+  display:inline-block;
+  animation:wiggle 2s infinite;
+}
+@keyframes bounceInstall{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-6px)}
+}
+@keyframes wiggle{
+  0%,100%{transform:rotate(0deg)}
+  25%{transform:rotate(-15deg)}
+  75%{transform:rotate(15deg)}
+}
+
+/* iOS Tip */
+.ios-install-tip{
+  position:fixed;
+  inset:0;
+  background:rgba(10,31,68,.85);
+  z-index:2500;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.tip-box{
+  background:#fff;
+  border-radius:20px;
+  padding:28px;
+  max-width:380px;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.4);
+}
+.tip-box h4{
+  color:#0a1f44;
+  font-size:1.2rem;
+  margin-bottom:16px;
+}
+.tip-box p{
+  color:#475569;
+  font-size:.95rem;
+  margin-bottom:10px;
+  text-align:right;
+}
+.tip-box button{
+  margin-top:18px;
+  padding:12px 32px;
+  background:#0a1f44;
+  color:#fff;
+  border:none;
+  border-radius:50px;
+  font-family:inherit;
+  font-weight:700;
+  font-size:1rem;
+  cursor:pointer;
+}
+
+@media(max-width:520px){
+  .install-fab{
+    bottom:96px;
+    left:16px;
+    padding:12px 18px;
+    font-size:.85rem;
+  }
+  .install-text{
+    display:none;
+  }
+  .install-fab::after{
+    content:'تثبيت';
+    margin-right:4px;
+  }
+}
