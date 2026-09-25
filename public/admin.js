@@ -34,7 +34,7 @@ $$('#sideNav a[data-view]').forEach(a => {
     loadView(a.dataset.view);
   };
 });
-const TITLES = { dashboard: 'الرئيسية', leads: 'الطلبات', hotels: 'الفنادق', services: 'الخدمات', events: 'الفعاليات', universities: 'الجامعات', destinations: 'الوجهات', settings: 'الإعدادات' };
+const TITLES = { dashboard: 'الرئيسية', leads: 'الطلبات', hotels: 'الفنادق', services: 'الخدمات', events: 'الفعاليات', universities: 'الجامعات', destinations: 'الوجهات', restaurants: 'المطاعم', settings: 'الإعدادات' };
 async function loadView(view) {
   $('#viewTitle').textContent = TITLES[view] || view;
   if (view === 'dashboard') return renderDashboard();
@@ -53,6 +53,7 @@ async function renderDashboard() {
       <div class="stat"><div class="label">حجوزات مكتملة</div><div class="value">${s.leads_booked}</div></div>
       <div class="stat"><div class="label">قيمة الطلبات التقديرية</div><div class="value">${fmt(s.revenue_estimate)}</div></div>
       <div class="stat"><div class="label">عدد الفنادق</div><div class="value">${s.hotels_total}</div></div>
+      <div class="stat"><div class="label">عدد المطاعم</div><div class="value">${s.restaurants_total || 0}</div></div>
       <div class="stat"><div class="label">عدد الخدمات</div><div class="value">${s.services_total}</div></div>
       <div class="stat"><div class="label">عدد الفعاليات</div><div class="value">${s.events_total || 0}</div></div>
       <div class="stat"><div class="label">عدد الجامعات</div><div class="value">${s.universities_total}</div></div>
@@ -91,6 +92,14 @@ const SCHEMAS = {
     { k: 'description', l: 'الوصف', type: 'textarea' }, { k: 'image', l: 'رابط الصورة', type: 'text' },
     { k: 'active', l: 'مفعّل', type: 'bool' }
   ], cols: ['name_ar', 'city', 'tuition_rub', 'active'] },
+  restaurants: { title: 'المطاعم', fields: [
+    { k: 'name', l: 'اسم المطعم', type: 'text', required: 1 },
+    { k: 'city', l: 'المدينة', type: 'select', options: [['موسكو', 'موسكو'], ['سوتشي', 'سوتشي'], ['سانت بطرسبرغ', 'سانت بطرسبرغ'], ['قازان', 'قازان'], ['مدينة أخرى', 'مدينة أخرى']] },
+    { k: 'cuisine', l: 'نوع المطعم (نص حر)', type: 'text' },
+    { k: 'note', l: 'ملاحظة (حلال / يبعد عن السنتر ...)', type: 'textarea' },
+    { k: 'image', l: 'رابط الصورة', type: 'text' },
+    { k: 'active', l: 'مفعّل', type: 'bool' }
+  ], cols: ['name', 'city', 'cuisine', 'active'] },
   destinations: { title: 'الوجهات', fields: [
     { k: 'name_ar', l: 'الاسم بالعربية', type: 'text', required: 1 }, { k: 'name_ru', l: 'الاسم بالروسية', type: 'text' },
     { k: 'name_en', l: 'الاسم بالإنجليزية', type: 'text' }, { k: 'description', l: 'الوصف', type: 'textarea' },
@@ -190,11 +199,52 @@ async function openPricesModal(hotel) {
   };
 }
 
+async function uploadImage(file) {
+  const fd = new FormData();
+  fd.append('image', file);
+  const r = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: 'فشل الرفع' }));
+    throw new Error(err.error || 'فشل رفع الصورة');
+  }
+  const data = await r.json();
+  return data.url;
+}
+function openImageUploader(inputId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async () => {
+    if (!input.files.length) return;
+    toast('جارٍ رفع الصورة...', '');
+    try {
+      const url = await uploadImage(input.files[0]);
+      const field = document.getElementById(inputId);
+      if (field) field.value = url;
+      toast('تم رفع الصورة بنجاح', 'ok');
+    } catch (e) {
+      toast(e.message || 'فشل الرفع', 'err');
+    }
+  };
+  input.click();
+}
+
 function openModal(entity, row, schema) {
   const isEdit = !!row;
   const form = schema.fields.map(f => {
     const v = row ? (row[f.k] ?? '') : '';
     if (f.type === 'textarea') return `<div class="field"><label>${f.l}</label><textarea name="${f.k}" rows="3">${v}</textarea></div>`;
+    if (f.k === 'image') {
+      const inputId = 'img_' + Math.random().toString(36).slice(2, 9);
+      return `<div class="field">
+        <label>${f.l}</label>
+        <div style="display:flex;gap:8px;align-items:stretch;">
+          <input type="text" name="${f.k}" id="${inputId}" value="${v}" placeholder="رابط الصورة أو ارفع صورة" style="flex:1;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-family:inherit;">
+          <button type="button" class="btn btn-navy" style="white-space:nowrap;padding:10px 16px;font-size:.9rem;" onclick="openImageUploader('${inputId}')">📁 رفع صورة</button>
+        </div>
+        ${v ? `<img src="${v}" style="max-width:100px;margin-top:8px;border-radius:8px;border:2px solid var(--border);" onerror="this.style.display='none'">` : ''}
+      </div>`;
+    }
     if (f.type === 'bool') return `<div class="field"><label><input type="checkbox" name="${f.k}" ${v ? 'checked' : ''}> ${f.l}</label></div>`;
     if (f.type === 'select') return `<div class="field"><label>${f.l}</label><select name="${f.k}">${f.options.map(([val, lbl]) => `<option value="${val}" ${v === val ? 'selected' : ''}>${lbl}</option>`).join('')}</select></div>`;
     return `<div class="field"><label>${f.l}</label><input type="${f.type}" name="${f.k}" value="${v}" ${f.required ? 'required' : ''}></div>`;

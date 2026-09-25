@@ -6,6 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { db, initDb, getSettings, setSetting } from './db.js';
 import { requireAuth } from './auth.js';
+import multer from 'multer';
+import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 initDb();
@@ -45,7 +47,6 @@ app.get('/api/hotels/:id', (req, res) => {
   r.prices = db.prepare('SELECT * FROM hotel_prices WHERE hotel_id=? ORDER BY date_from').all(req.params.id);
   ok(res, r);
 });
-// حساب سعر الفندق حسب التاريخ (يوم بيوم)
 app.get('/api/hotels/:id/price', (req, res) => {
   const { id } = req.params;
   const { from, to } = req.query;
@@ -54,6 +55,15 @@ app.get('/api/hotels/:id/price', (req, res) => {
   if (!hotel) return err(res, 404, 'Hotel not found');
   const result = calcHotelPrice(hotel, from, to);
   ok(res, result);
+});
+
+/* ===== RESTAURANTS ===== */
+app.get('/api/restaurants', (req, res) => {
+  const { city } = req.query;
+  let q = 'SELECT * FROM restaurants WHERE active=1'; const p = [];
+  if (city) { q += ' AND city=?'; p.push(city); }
+  q += ' ORDER BY id DESC';
+  ok(res, db.prepare(q).all(...p));
 });
 
 app.get('/api/services', (req, res) =>
@@ -112,6 +122,30 @@ app.get('/api/auth/me', (req, res) => {
 /* ===== ADMIN ===== */
 app.use('/api/admin', requireAuth);
 
+/* ===== FILE UPLOAD ===== */
+const uploadsDir = path.join(__dirname, '../public/uploads');
+fs.mkdirSync(uploadsDir, { recursive: true });
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const safe = Date.now() + '-' + Math.round(Math.random() * 1e9) + ext;
+    cb(null, safe);
+  }
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /jpeg|jpg|png|gif|webp/.test(file.mimetype);
+    cb(ok ? null : new Error('نوع الملف غير مسموح'), ok);
+  }
+});
+app.post('/api/admin/upload', upload.single('image'), (req, res) => {
+  if (!req.file) return err(res, 400, 'لم يتم رفع أي صورة');
+  ok(res, { ok: true, url: '/uploads/' + req.file.filename });
+});
+
 function crud(table, fields) {
   const r = express.Router();
   r.get('/', (req, res) => ok(res, db.prepare(`SELECT * FROM ${table} ORDER BY id DESC`).all()));
@@ -139,12 +173,13 @@ function crud(table, fields) {
 }
 
 app.use('/api/admin/hotels',       crud('hotels',       ['name','city','stars','room_type','breakfast','price_rub','description','address','image','active']));
+app.use('/api/admin/restaurants',  crud('restaurants',  ['name','city','cuisine','note','image','active']));
 app.use('/api/admin/services',     crud('services',     ['name','description','price_rub','price_unit','city','image','active']));
 app.use('/api/admin/events',       crud('events',       ['name','city','event_date','venue','price_rub','description','image','active']));
 app.use('/api/admin/universities', crud('universities', ['name_ar','name_ru','name_en','city','specializations','tuition_rub','housing','image','description','website','active']));
 app.use('/api/admin/destinations', crud('destinations', ['name_ar','name_ru','name_en','description','image','active','sort_order']));
 
-/* ===== HOTEL PRICES (Seasonal) ===== */
+/* ===== HOTEL PRICES ===== */
 app.get('/api/admin/hotels/:id/prices', (req, res) => {
   const rows = db.prepare('SELECT * FROM hotel_prices WHERE hotel_id=? ORDER BY date_from').all(req.params.id);
   ok(res, rows);
@@ -155,7 +190,6 @@ app.post('/api/admin/hotels/:id/prices', (req, res) => {
     return err(res, 400, 'date_from, date_to, price_rub مطلوبة');
   if (new Date(date_to) < new Date(date_from))
     return err(res, 400, 'تاريخ النهاية يجب أن يكون بعد البداية');
-  // فحص التداخل مع فترات أخرى
   const conflict = db.prepare(
     `SELECT * FROM hotel_prices WHERE hotel_id=? AND NOT (date_to < ? OR date_from > ?)`
   ).get(req.params.id, date_from, date_to);
@@ -199,6 +233,7 @@ app.get('/api/admin/stats', (req, res) => ok(res, {
   leads_new:           db.prepare("SELECT COUNT(*) c FROM leads WHERE status='new'").get().c,
   leads_booked:        db.prepare("SELECT COUNT(*) c FROM leads WHERE status='booked'").get().c,
   hotels_total:        db.prepare('SELECT COUNT(*) c FROM hotels').get().c,
+  restaurants_total:   db.prepare('SELECT COUNT(*) c FROM restaurants').get().c,
   services_total:      db.prepare('SELECT COUNT(*) c FROM services').get().c,
   events_total:        db.prepare('SELECT COUNT(*) c FROM events').get().c,
   universities_total:  db.prepare('SELECT COUNT(*) c FROM universities').get().c,
@@ -240,12 +275,10 @@ function calcHotelPrice(hotel, from, to) {
     const d = new Date(start);
     d.setDate(d.getDate() + i);
     const dStr = d.toISOString().split('T')[0];
-    // ابحث عن فترة سعرية تنطبق على هذا اليوم
     const match = prices.find(p => dStr >= p.date_from && dStr <= p.date_to);
     const price = match ? match.price_rub : hotel.price_rub;
     const label = match ? (match.label || 'موسم خاص') : 'افتراضي';
     total += price;
-    // اجمع الأيام المتتالية بنفس السعر
     const last = breakdown[breakdown.length - 1];
     if (last && last.price === price && last.label === label) {
       last.to = dStr;

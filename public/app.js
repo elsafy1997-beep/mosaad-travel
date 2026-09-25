@@ -90,10 +90,14 @@ async function loadServices() {
   const icons = ['[1]','[2]','[3]','[4]','[5]','[6]','[7]','[8]'];
   $('#servicesGrid').innerHTML = SERVICES.map((s, i) => `
     <div class="svc">
-      <div class="ico">${icons[i % icons.length]}</div>
+      ${s.image
+        ? `<div class="svc-img"><img src="${s.image}" alt="${s.name}" loading="lazy"></div>`
+        : `<div class="ico">${icons[i % icons.length]}</div>`
+      }
       <h3>${s.name}</h3>
       <p>${s.description || ''}</p>
       ${s.price_rub ? `<div style="margin-top:12px;font-weight:800;color:var(--gold)">${fmt(s.price_rub)} <small style="color:var(--gray);font-weight:400">${unitLabel(s.price_unit)}</small></div>` : ''}
+      <button class="btn btn-gold" style="margin-top:14px;width:100%;" onclick="requestService(${s.id})">احجز هذه الخدمة</button>
     </div>`).join('');
 }
 async function loadDestinations() {
@@ -147,6 +151,110 @@ async function loadEvents() {
   if (sochiGrid)  sochiGrid.innerHTML  = sochi.length  ? sochi.map(renderCard).join('')  : emptyMsg;
   if (otherGrid)  otherGrid.innerHTML  = other.length  ? other.map(renderCard).join('')  : emptyMsg;
 }
+/* ============ RESTAURANTS ============ */
+async function loadRestaurants() {
+  const list = await api('/api/restaurants');
+
+  const renderCard = (r) => `
+    <div class="card">
+      <div class="card-img"><img src="${r.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'}" alt="${r.name}"></div>
+      <div class="card-body">
+        <h3>${r.name}</h3>
+        <p style="color:var(--gold);font-weight:700">${r.cuisine || ''}</p>
+        ${r.note ? `<p style="font-size:.85rem;color:var(--gray);background:#f8fafc;padding:8px 12px;border-radius:8px;margin-bottom:10px;">${r.note}</p>` : '<p style="color:var(--gray);font-size:.85rem;">&nbsp;</p>'}
+        <div class="card-foot">
+          <button class="btn btn-navy" onclick="requestRestaurant(${r.id})">احجز هذا المطعم</button>
+        </div>
+      </div>
+    </div>`;
+
+  const emptyMsg = '<p style="text-align:center;color:var(--gray);grid-column:1/-1;padding:20px;">لا توجد مطاعم متاحة حالياً.</p>';
+
+  const moscow = list.filter(r => (r.city || '').trim() === 'موسكو');
+  const sochi  = list.filter(r => (r.city || '').trim() === 'سوتشي');
+  const spb    = list.filter(r => ['سانت بطرسبرغ', 'سانت بطرسبورغ', 'بيتر', 'بطرسبرغ'].includes((r.city || '').trim()));
+  const other  = list.filter(r => !['موسكو', 'سوتشي', 'سانت بطرسبرغ', 'سانت بطرسبورغ', 'بيتر', 'بطرسبرغ'].includes((r.city || '').trim()));
+
+  const g1 = document.getElementById('restaurantsMoscow');
+  const g2 = document.getElementById('restaurantsSochi');
+  const g3 = document.getElementById('restaurantsSpb');
+  const g4 = document.getElementById('restaurantsOther');
+
+  if (g1) g1.innerHTML = moscow.length ? moscow.map(renderCard).join('') : emptyMsg;
+  if (g2) g2.innerHTML = sochi.length  ? sochi.map(renderCard).join('')  : emptyMsg;
+  if (g3) g3.innerHTML = spb.length    ? spb.map(renderCard).join('')    : emptyMsg;
+  if (g4) g4.innerHTML = other.length  ? other.map(renderCard).join('')  : emptyMsg;
+}
+
+window.requestService = async (id) => {
+  try {
+    const list = await api('/api/services');
+    const s = list.find(x => x.id === id);
+    if (!s) return;
+
+    let msg = 'السلام عليكم، أريد حجز خدمة عبر مُساعد:';
+    msg += '\n\n';
+    msg += 'الخدمة: ' + s.name;
+    if (s.city)         msg += '\nالمدينة: ' + s.city;
+    if (s.description)  msg += '\nالتفاصيل: ' + s.description;
+    if (s.price_rub)    msg += '\nالسعر: ' + s.price_rub.toLocaleString('ar-EG') + ' RUB';
+
+    await api('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'عميل من الموقع',
+        phone: '-', whatsapp: '-', country: '-',
+        persons: 1, city: s.city || '',
+        services: [{ type: 'service', id: s.id, name: s.name }],
+        estimated_rub: s.price_rub || 0,
+        notes: 'حجز خدمة: ' + s.name
+      })
+    });
+
+    toast('جارٍ فتح WhatsApp...', 'ok');
+    setTimeout(() => {
+      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+    }, 500);
+  } catch (e) {
+    toast('خطأ', 'err');
+  }
+};
+
+window.requestRestaurant = async (id) => {
+  try {
+    const list = await api('/api/restaurants');
+    const r = list.find(x => x.id === id);
+    if (!r) return;
+
+    let msg = 'السلام عليكم، أريد حجز مطعم عبر مُساعد:\n\n';
+    msg += 'المطعم: ' + r.name + '\n';
+    msg += 'المدينة: ' + r.city;
+    if (r.cuisine) msg += '\nالنوع: ' + r.cuisine;
+    if (r.note)    msg += '\nملاحظات: ' + r.note;
+
+    await api('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'عميل من الموقع',
+        phone: '-', whatsapp: '-', country: '-',
+        persons: 1, city: r.city,
+        services: [{ type: 'restaurant', id: r.id, name: r.name }],
+        estimated_rub: 0,
+        notes: 'حجز مطعم: ' + r.name
+      })
+    });
+
+    toast('جارٍ فتح WhatsApp...', 'ok');
+    setTimeout(() => {
+      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+    }, 500);
+  } catch (e) {
+    toast('خطأ', 'err');
+  }
+};
+
 async function loadUniversities() {
   const list = await api('/api/universities');
   $('#uniGrid').innerHTML = list.length ? list.map(u => `
@@ -537,7 +645,7 @@ window.removeHotelSegment = removeHotelSegment;
         </div>
       </div>`).join('');
 
-    await Promise.all([loadServices(), loadDestinations(), loadEvents(), loadUniversities()]);
+    await Promise.all([loadServices(), loadDestinations(), loadEvents(), loadRestaurants(), loadUniversities()]);
     fillPlanner();
   } catch (e) { console.error(e); toast('تعذر تحميل بعض البيانات', 'err'); }
 })();

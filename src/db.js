@@ -48,6 +48,19 @@ export function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_hotel_prices_hotel ON hotel_prices(hotel_id);
     CREATE INDEX IF NOT EXISTS idx_hotel_prices_dates ON hotel_prices(date_from, date_to);
+
+    CREATE TABLE IF NOT EXISTS restaurants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      city TEXT NOT NULL,
+      cuisine TEXT DEFAULT '',
+      note TEXT DEFAULT '',
+      image TEXT,
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_restaurants_city ON restaurants(city);
+
     CREATE TABLE IF NOT EXISTS services (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL, description TEXT,

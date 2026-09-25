@@ -253,3 +253,56 @@ footer{background:#061530;color:#94a3b8;padding:60px 5% 24px}
   .social-btn span{display:none}
   .social-btn{padding:10px;border-radius:50%;width:44px;height:44px;justify-content:center}
 }
+
+/* ===== Service Image ===== */
+.svc-img{
+  width:100%;
+  height:160px;
+  margin:-26px -22px 14px -22px;
+  width:calc(100% + 44px);
+  border-radius:18px 18px 0 0;
+  overflow:hidden;
+  background:#f1f5f9;
+}
+.svc-img img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.svc{
+  padding:0 !important;
+  overflow:hidden;
+}
+.svc .ico{
+  margin:26px auto 14px auto;
+}
+.svc h3{
+  padding:0 22px;
+  margin-bottom:6px !important;
+}
+.svc p{
+  padding:0 22px;
+}
+.svc .price,
+.svc > div:not(.svc-img):not(.ico),
+.svc > button{
+  margin-left:22px;
+  margin-right:22px;
+}
+.svc > button{
+  width:calc(100% - 44px) !important;
+  margin-bottom:22px;
+}
+.svc .price,
+.svc > div[style*="margin-top:12px"]{
+  padding:0 22px;
+  margin-left:0 !important;
+  margin-right:0 !important;
+}
+.svc > button{
+  margin-bottom:22px;
+}
+.svc:hover{
+  border-color:var(--gold);
+}
