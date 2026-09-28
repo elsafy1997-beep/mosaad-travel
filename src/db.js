@@ -165,10 +165,49 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_medical_type ON medical_centers(type);
     CREATE INDEX IF NOT EXISTS idx_medical_active ON medical_centers(active);
 
+    CREATE TABLE IF NOT EXISTS scholarships (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      website TEXT DEFAULT '',
+      deadline TEXT DEFAULT '',
+      image TEXT,
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_scholarships_active ON scholarships(active);
+
+    CREATE TABLE IF NOT EXISTS tours (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      price_rub INTEGER DEFAULT 0,
+      price_unit TEXT DEFAULT 'order',
+      allow_quantity INTEGER DEFAULT 0,
+      note TEXT DEFAULT '',
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_tours_active ON tours(active);
+
+    CREATE TABLE IF NOT EXISTS extra_services (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      price_rub INTEGER DEFAULT 0,
+      price_unit TEXT DEFAULT 'order',
+      note TEXT DEFAULT '',
+      allow_quantity INTEGER DEFAULT 0,
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_extra_services_active ON extra_services(active);
+
     CREATE TABLE IF NOT EXISTS services (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL, description TEXT,
       price_rub INTEGER DEFAULT 0, price_unit TEXT DEFAULT 'order',
+      allow_quantity INTEGER DEFAULT 0,
       city TEXT, image TEXT, active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -185,6 +224,7 @@ export function initDb() {
       city TEXT, specializations TEXT,
       tuition_rub INTEGER DEFAULT 0, housing TEXT,
       image TEXT, description TEXT, website TEXT,
+      study_type TEXT DEFAULT 'contract',
       active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -217,7 +257,7 @@ export function initDb() {
   }
 
   const defaults = {
-    site_name: 'مُساعد | MOSAAD',
+    site_name: 'مُساعد | MOSAED',
     site_tagline: 'مساعدك العربي في روسيا',
     whatsapp_number: process.env.WHATSAPP_NUMBER || '79990000000',
     contact_email: 'info@mosaad.ru',
@@ -267,6 +307,30 @@ export function initDb() {
     `).run();
 
     console.log('Sample data seeded');
+  }
+  
+  // Migrations - add missing columns
+  try {
+    const cols = db.prepare("PRAGMA table_info(services)").all();
+    const hasQty = cols.some(c => c.name === 'allow_quantity');
+    if (!hasQty) {
+      db.prepare('ALTER TABLE services ADD COLUMN allow_quantity INTEGER DEFAULT 0').run();
+      console.log('✅ Migration: allow_quantity added to services');
+    }
+  } catch (e) {
+    console.log('Migration warning:', e.message);
+  }
+  
+  // Migration for tours
+  try {
+    const cols = db.prepare("PRAGMA table_info(tours)").all();
+    const hasQty = cols.some(c => c.name === 'allow_quantity');
+    if (!hasQty) {
+      db.prepare('ALTER TABLE tours ADD COLUMN allow_quantity INTEGER DEFAULT 0').run();
+      console.log('✅ Migration: allow_quantity added to tours');
+    }
+  } catch (e) {
+    console.log('Migration warning (tours):', e.message);
   }
 }
 

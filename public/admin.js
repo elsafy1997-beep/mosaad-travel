@@ -34,7 +34,7 @@ $$('#sideNav a[data-view]').forEach(a => {
     loadView(a.dataset.view);
   };
 });
-const TITLES = { dashboard: 'الرئيسية', leads: 'الطلبات', hotels: 'الفنادق', services: 'الخدمات', events: 'الفعاليات', universities: 'الجامعات', destinations: 'الوجهات', restaurants: 'المطاعم', ads: 'الإعلانات', trips: 'جداول العملاء', templates: 'قوالب الجداول', medical: 'العلاج', settings: 'الإعدادات' };
+const TITLES = { dashboard: 'الرئيسية', leads: 'الطلبات', hotels: 'الفنادق', services: 'الخدمات', 'extra-services': 'الخدمات الإضافية', events: 'الفعاليات', universities: 'الجامعات', scholarships: 'المنح الدراسية', tours: 'الجولات والتنقلات', destinations: 'الوجهات', restaurants: 'المطاعم', ads: 'الإعلانات', trips: 'جداول العملاء', templates: 'قوالب الجداول', medical: 'العلاج', settings: 'الإعدادات' };
 async function loadView(view) {
   $('#viewTitle').textContent = TITLES[view] || view;
   if (view === 'dashboard') return renderDashboard();
@@ -92,6 +92,7 @@ const SCHEMAS = {
     { k: 'name_en', l: 'الاسم بالإنجليزية', type: 'text' }, { k: 'city', l: 'المدينة', type: 'text' },
     { k: 'specializations', l: 'التخصصات', type: 'text' }, { k: 'tuition_rub', l: 'الرسوم (RUB)', type: 'number' },
     { k: 'housing', l: 'السكن', type: 'text' }, { k: 'website', l: 'الموقع الإلكتروني', type: 'text' },
+    { k: 'study_type', l: 'نوع الدراسة', type: 'select', options: [['contract', 'عقد'], ['scholarship', 'منحة'], ['both', 'كلاهما']] },
     { k: 'description', l: 'الوصف', type: 'textarea' }, { k: 'image', l: 'رابط الصورة', type: 'text' },
     { k: 'active', l: 'مفعّل', type: 'bool' }
   ], cols: ['name_ar', 'city', 'tuition_rub', 'active'] },
@@ -112,6 +113,32 @@ const SCHEMAS = {
     { k: 'image', l: 'الصورة', type: 'text' },
     { k: 'active', l: 'مفعّل', type: 'bool' }
   ], cols: ['name', 'type', 'city', 'specialization', 'active'] },
+  scholarships: { title: 'المنح الدراسية', fields: [
+    { k: 'name', l: 'اسم المنحة', type: 'text', required: 1 },
+    { k: 'description', l: 'الوصف', type: 'textarea' },
+    { k: 'website', l: 'رابط المنحة', type: 'text' },
+    { k: 'deadline', l: 'اخر موعد للتقديم', type: 'text' },
+    { k: 'image', l: 'الصورة', type: 'text' },
+    { k: 'active', l: 'مفعّل', type: 'bool' }
+  ], cols: ['name', 'deadline', 'active'] },
+  tours: { title: 'الجولات والتنقلات', fields: [
+    { k: 'name', l: 'الاسم', type: 'text', required: 1 },
+    { k: 'description', l: 'الوصف', type: 'textarea' },
+    { k: 'price_rub', l: 'السعر (RUB)', type: 'number' },
+    { k: 'price_unit', l: 'وحدة الحساب', type: 'select', options: [['order', 'للطلب'], ['day', 'لليوم'], ['tour', 'للجولة']] },
+    { k: 'allow_quantity', l: 'يمكن تحديد العدد', type: 'bool' },
+    { k: 'note', l: 'ملاحظة (مثل اسم المدينة)', type: 'text' },
+    { k: 'active', l: 'مفعّل', type: 'bool' }
+  ], cols: ['name', 'price_unit', 'price_rub', 'allow_quantity', 'active'] },
+  'extra-services': { title: 'الخدمات الإضافية', fields: [
+    { k: 'name', l: 'الاسم', type: 'text', required: 1 },
+    { k: 'description', l: 'الوصف', type: 'textarea' },
+    { k: 'price_rub', l: 'السعر (RUB)', type: 'number' },
+    { k: 'price_unit', l: 'وحدة السعر', type: 'select', options: [['order', 'للطلب'], ['person', 'للفرد'], ['car', 'للسيارة'], ['day', 'لليوم'], ['from', 'يبدأ من']] },
+    { k: 'note', l: 'ملاحظة', type: 'text' },
+    { k: 'allow_quantity', l: 'يمكن تحديد العدد', type: 'bool' },
+    { k: 'active', l: 'مفعّل', type: 'bool' }
+  ], cols: ['name', 'price_rub', 'price_unit', 'allow_quantity', 'active'] },
   destinations: { title: 'الوجهات', fields: [
     { k: 'name_ar', l: 'الاسم بالعربية', type: 'text', required: 1 }, { k: 'name_ru', l: 'الاسم بالروسية', type: 'text' },
     { k: 'name_en', l: 'الاسم بالإنجليزية', type: 'text' }, { k: 'description', l: 'الوصف', type: 'textarea' },
@@ -280,10 +307,91 @@ function closeModal() { $('#modalBg').classList.remove('show'); }
 $('#modalBg').onclick = e => { if (e.target.id === 'modalBg') closeModal(); };
 async function renderLeads() {
   const rows = await api('/api/admin/leads');
-  $('#viewContent').innerHTML = `<table><thead><tr><th>ID</th><th>الرقم</th><th>الاسم</th><th>الهاتف</th><th>المدينة</th><th>القيمة</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-    <tbody>${rows.length ? rows.map(r => `<tr><td>${r.id}</td><td>${r.code}</td><td>${r.name}</td><td>${r.whatsapp || r.phone}</td><td>${r.city || '—'}</td><td>${fmt(r.estimated_rub)}</td>
+  $('#viewContent').innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:var(--navy);">
+        <input type="checkbox" id="selectAllLeads" style="width:18px;height:18px;accent-color:var(--gold);">
+        تحديد الكل
+      </label>
+      <button class="btn btn-gold" id="deleteSelectedLeadsBtn" style="background:#dc2626;color:#fff;opacity:0.5;cursor:not-allowed;" disabled>🗑️ حذف المحددة (0)</button>
+      <span style="color:var(--gray);font-size:.9rem;">إجمالي: <strong>${rows.length}</strong> طلب</span>
+    </div>
+    <table><thead><tr>
+      <th style="width:40px;"></th>
+      <th>ID</th><th>الرقم</th><th>الاسم</th><th>الهاتف</th><th>المدينة</th><th>القيمة</th><th>الحالة</th><th>إجراءات</th>
+    </tr></thead>
+    <tbody>${rows.length ? rows.map(r => `<tr>
+      <td><input type="checkbox" class="lead-checkbox" value="${r.id}" style="width:18px;height:18px;accent-color:var(--gold);"></td>
+      <td>${r.id}</td><td>${r.code}</td><td>${r.name}</td><td>${r.whatsapp || r.phone}</td><td>${r.city || '—'}</td><td>${fmt(r.estimated_rub)}</td>
       <td><select data-status="${r.id}" style="padding:5px 8px;border-radius:8px;border:1px solid var(--border);font-family:inherit">${['new','contacted','interested','quote','pending','booked','done','cancelled'].map(s => `<option value="${s}" ${r.status === s ? 'selected' : ''}>${statusLabel(s)}</option>`).join('')}</select></td>
-      <td class="row-actions"><a class="icon-btn" target="_blank" href="https://wa.me/${(r.whatsapp || r.phone || '').replace(/\D/g, '')}">واتساب</a><button class="icon-btn" data-view="${r.id}">تفاصيل</button><button class="icon-btn del" data-del="${r.id}">حذف</button></td></tr>`).join('') : `<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:30px">لا توجد طلبات بعد</td></tr>`}</tbody></table>`;
+      <td class="row-actions"><a class="icon-btn" target="_blank" href="https://wa.me/${(r.whatsapp || r.phone || '').replace(/\D/g, '')}">واتساب</a><button class="icon-btn" data-view="${r.id}">تفاصيل</button><button class="icon-btn del" data-del="${r.id}">حذف</button></td>
+    </tr>`).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:30px">لا توجد طلبات بعد</td></tr>`}</tbody></table>`;
+
+  // Select All
+  const selectAll = document.getElementById('selectAllLeads');
+  const checkboxes = $$('.lead-checkbox');
+  const delBtn = document.getElementById('deleteSelectedLeadsBtn');
+
+  function updateDelBtn() {
+    const selected = $$('.lead-checkbox:checked');
+    const count = selected.length;
+    delBtn.innerHTML = '🗑️ حذف المحددة (' + count + ')';
+    if (count > 0) {
+      delBtn.disabled = false;
+      delBtn.style.opacity = '1';
+      delBtn.style.cursor = 'pointer';
+    } else {
+      delBtn.disabled = true;
+      delBtn.style.opacity = '0.5';
+      delBtn.style.cursor = 'not-allowed';
+    }
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      checkboxes.forEach(cb => cb.checked = selectAll.checked);
+      updateDelBtn();
+    });
+  }
+
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (selectAll) {
+        selectAll.checked = checkboxes.length > 0 && checkboxes.every(c => c.checked);
+      }
+      updateDelBtn();
+    });
+  });
+
+  // Delete Selected
+  if (delBtn) {
+    delBtn.addEventListener('click', async () => {
+      const selected = $$('.lead-checkbox:checked');
+      const ids = selected.map(cb => +cb.value);
+      if (!ids.length) return;
+      if (!confirm('⚠️ حذف ' + ids.length + ' طلب؟\n\nلا يمكن التراجع!')) return;
+
+      delBtn.disabled = true;
+      delBtn.innerHTML = '⏳ جارٍ الحذف...';
+
+      let deleted = 0;
+      let failed = 0;
+      for (const id of ids) {
+        try {
+          await api('/api/admin/leads/' + id, { method: 'DELETE' });
+          deleted++;
+          delBtn.innerHTML = '⏳ ' + deleted + '/' + ids.length + '...';
+        } catch (e) {
+          failed++;
+          console.error('Failed to delete lead', id, e);
+        }
+      }
+
+      toast('✅ تم حذف ' + deleted + (failed ? ' (فشل ' + failed + ')' : ''), 'ok');
+      renderLeads();
+    });
+  }
+
   $$('[data-status]').forEach(sel => sel.onchange = async () => {
     await api(`/api/admin/leads/${sel.dataset.status}`, { method: 'PUT', body: JSON.stringify({ status: sel.value }) });
     toast('تم تحديث الحالة', 'ok');
@@ -473,8 +581,17 @@ function openAdModal(ad) {
 async function renderTripsAdmin() {
   const trips = await api('/api/admin/trip-plans');
   $('#viewContent').innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:var(--navy);">
+        <input type="checkbox" id="selectAllTrips" style="width:18px;height:18px;accent-color:var(--gold);">
+        تحديد الكل
+      </label>
+      <button class="btn btn-gold" id="deleteSelectedTripsBtn" style="background:#dc2626;color:#fff;opacity:0.5;cursor:not-allowed;" disabled>🗑️ حذف المحددة (0)</button>
+      <span style="color:var(--gray);font-size:.9rem;">إجمالي: <strong>${trips.length}</strong> جدول</span>
+    </div>
     <table>
       <thead><tr>
+        <th style="width:40px;"></th>
         <th>ID</th><th>الرقم</th><th>الاسم</th><th>WhatsApp</th>
         <th>الفترة</th><th>الأشخاص</th><th>الأنشطة</th>
         <th>الحالة</th><th>إجراءات</th>
@@ -482,6 +599,7 @@ async function renderTripsAdmin() {
       <tbody>${trips.length ? trips.map(t => {
         const dates = (t.start_date || '—') + ' → ' + (t.end_date || '—');
         return '<tr>' +
+          '<td><input type="checkbox" class="trip-checkbox" value="' + t.id + '" style="width:18px;height:18px;accent-color:var(--gold);"></td>' +
           '<td>' + t.id + '</td>' +
           '<td>' + (t.code || '') + '</td>' +
           '<td>' + t.client_name + '</td>' +
@@ -496,8 +614,73 @@ async function renderTripsAdmin() {
             '<button class="icon-btn del" data-del-trip="' + t.id + '">حذف</button>' +
           '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:30px">لا توجد جداول بعد</td></tr>'}</tbody>
+      }).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:30px">لا توجد جداول بعد</td></tr>'}</tbody>
     </table>`;
+
+  // Select All
+  const selectAll = document.getElementById('selectAllTrips');
+  const checkboxes = $$('.trip-checkbox');
+  const delBtn = document.getElementById('deleteSelectedTripsBtn');
+
+  function updateDelBtn() {
+    const selected = $$('.trip-checkbox:checked');
+    const count = selected.length;
+    delBtn.innerHTML = '🗑️ حذف المحددة (' + count + ')';
+    if (count > 0) {
+      delBtn.disabled = false;
+      delBtn.style.opacity = '1';
+      delBtn.style.cursor = 'pointer';
+    } else {
+      delBtn.disabled = true;
+      delBtn.style.opacity = '0.5';
+      delBtn.style.cursor = 'not-allowed';
+    }
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      checkboxes.forEach(cb => cb.checked = selectAll.checked);
+      updateDelBtn();
+    });
+  }
+
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (selectAll) {
+        selectAll.checked = checkboxes.length > 0 && checkboxes.every(c => c.checked);
+      }
+      updateDelBtn();
+    });
+  });
+
+  // Delete Selected
+  if (delBtn) {
+    delBtn.addEventListener('click', async () => {
+      const selected = $$('.trip-checkbox:checked');
+      const ids = selected.map(cb => +cb.value);
+      if (!ids.length) return;
+      if (!confirm('⚠️ حذف ' + ids.length + ' جدول؟\n\nلا يمكن التراجع!')) return;
+
+      delBtn.disabled = true;
+      delBtn.innerHTML = '⏳ جارٍ الحذف...';
+
+      let deleted = 0;
+      let failed = 0;
+      for (const id of ids) {
+        try {
+          await api('/api/admin/trip-plans/' + id, { method: 'DELETE' });
+          deleted++;
+          delBtn.innerHTML = '⏳ ' + deleted + '/' + ids.length + '...';
+        } catch (e) {
+          failed++;
+          console.error('Failed to delete trip', id, e);
+        }
+      }
+
+      toast('✅ تم حذف ' + deleted + (failed ? ' (فشل ' + failed + ')' : ''), 'ok');
+      renderTripsAdmin();
+    });
+  }
 
   $$('[data-del-trip]').forEach(b => b.onclick = async () => {
     if (!confirm('حذف هذا الجدول؟')) return;
@@ -513,21 +696,19 @@ async function renderTripsAdmin() {
       if (!byDay[a.day_number]) byDay[a.day_number] = [];
       byDay[a.day_number].push(a);
     });
-
     let daysHtml = '';
     Object.keys(byDay).sort((a,b) => +a - +b).forEach(dayNum => {
       daysHtml += '<div style="background:#f8fafc;padding:14px;border-radius:10px;margin-bottom:12px;">';
-      daysHtml += '<h4 style="color:var(--navy);margin-bottom:10px;">📅 اليوم ' + dayNum + '</h4>';
+      daysHtml += '<h4 style="color:var(--navy);margin-bottom:10px;">اليوم ' + dayNum + '</h4>';
       byDay[dayNum].forEach(a => {
         daysHtml += '<div style="padding:8px 12px;background:#fff;border-radius:8px;margin-bottom:6px;font-size:.9rem;">';
-        daysHtml += '<strong>' + (a.time_slot || '') + '</strong> — ' + (a.title || a.description);
-        if (a.location) daysHtml += ' <span style="color:var(--gray);">📍 ' + a.location + '</span>';
+        daysHtml += '<strong>' + (a.time_slot || '') + '</strong> - ' + (a.title || a.description);
+        if (a.location) daysHtml += ' <span style="color:var(--gray);">' + a.location + '</span>';
         if (a.description && a.title) daysHtml += '<br><span style="font-size:.85rem;color:var(--gray);">' + a.description + '</span>';
         daysHtml += '</div>';
       });
       daysHtml += '</div>';
     });
-
     $('#modalContent').innerHTML =
       '<h2>جدول: ' + plan.code + '</h2>' +
       '<div style="display:grid;gap:8px;font-size:.92rem;margin-bottom:16px;">' +

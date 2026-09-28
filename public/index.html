@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مُساعد | MOSAAD - مساعدك العربي في روسيا</title>
+<title>مُساعد | MOSAED - مساعدك العربي في روسيا</title>
 <meta name="description" content="منصة عربية متكاملة لخدمات السياحة والدراسة في روسيا.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
 </head>
 <body>
 <header id="hdr">
-  <a href="#" class="logo"><span class="mark">م</span><span>مُساعد<small>MOSAAD</small></span></a>
+  <a href="#" class="logo"><span class="mark">م</span><span>مُساعد<small>MOSAED</small></span></a>
   <nav><ul id="nav">
     <li><a href="#home">الرئيسية</a></li>
     <li><a href="#plan">خطط رحلتك</a></li>
@@ -67,8 +67,11 @@
     <div class="field" style="margin-top:26px"><label>اختر الفعاليات</label></div>
     <div class="checks" id="pEvents"></div>
 
+    <div class="field" style="margin-top:16px"><label>الجولات والتنقلات</label></div>
+    <div class="cards-grid" id="pTourPackages"></div>
+
     <div class="field" style="margin-top:16px"><label>الخدمات الإضافية</label></div>
-    <div class="checks" id="pServices"></div>
+    <div class="cards-grid" id="pExtraServices"></div>
 
     <div class="field" style="margin-top:16px">
       <label>اختر العملة (اختياري)</label>
@@ -169,9 +172,19 @@
   <div class="grid g-4" id="destGrid"></div>
 </section>
 
+<!-- ===== الدراسة ===== -->
 <section id="study">
-  <div class="sec-head"><span class="tag">الدراسة في روسيا</span><h2>ابحث عن جامعتك</h2><p>نساعدك في اختيار الجامعة والتخصص والتقديم.</p></div>
-  <div class="grid g-3" id="uniGrid"></div>
+  <div class="sec-head">
+    <span class="tag">الدراسة في روسيا</span>
+    <h2>الدراسة في روسيا</h2>
+    <p>اختر نوع الدراسة: منحة حكومية أو نظام عقد.</p>
+  </div>
+
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin-bottom:24px;font-weight:900;">المنح الدراسية الحكومية</h3>
+  <div class="grid g-3" id="scholarshipsGrid"></div>
+
+  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">الدراسة بنظام العقد</h3>
+  <div class="grid g-3" id="universitiesGrid"></div>
 </section>
 
 <section id="medical" style="background:#fff;padding:80px 5%;">
@@ -225,9 +238,9 @@
       <button type="submit" class="btn btn-gold">إرسال</button>
     </form>
     <div class="contact-info">
-      <div class="info-item"><div class="ico">WA</div><div><strong>WhatsApp</strong><br><span id="cWhats"></span></div></div>
-      <div class="info-item"><div class="ico">@</div><div><strong>البريد</strong><br><span id="cEmail"></span></div></div>
-      <div class="info-item"><div class="ico">TEL</div><div><strong>الهاتف</strong><br><span id="cPhone"></span></div></div>
+      <div class="info-item"><div class="ico">WA</div><div><strong>WhatsApp</strong><br><span id="cWhats" dir="ltr"></span></div></div>
+      <div class="info-item"><div class="ico">@</div><div><strong>البريد</strong><br><span id="cEmail" dir="ltr"></span></div></div>
+      <div class="info-item"><div class="ico">TEL</div><div><strong>الهاتف</strong><br><span id="cPhone" dir="ltr"></span></div></div>
     </div>
   </div>
 </section>
@@ -235,7 +248,7 @@
 <footer>
   <div class="foot-grid">
     <div>
-      <h4>مُساعد | MOSAAD</h4>
+      <h4>مُساعد | MOSAED</h4>
       <p id="footText" style="font-size:.9rem;line-height:1.9">وجهتك المثالية لاكتشاف روسيا.</p>
       <h5 class="foot-follow-title">تابعنا</h5>
       <div class="socials" id="socialLinks">
@@ -265,14 +278,19 @@
       <li><a href="#restaurants">مطاعم</a></li>
     </ul></div>
     <div><h4>خدماتنا</h4><ul>
-      <li>استقبال المطار</li><li>حجز فنادق</li><li>فعاليات سياحية</li><li>الدراسة في روسيا</li>
+      <li>فنادق وفعاليات</li>
+      <li>الدراسة في روسيا</li>
+      <li>العلاج في روسيا</li>
+      <li>الترجمة والتوثيق</li>
+      <li>استقبال وتوديع</li>
     </ul></div>
     <div><h4>تواصل</h4><ul>
-      <li id="footPhone">Phone</li><li id="footEmail">Email</li>
+      <li id="footPhone">الهاتف</li>
+      <li id="footEmail">البريد</li>
       <li><a href="#" id="footWhats">واتساب</a></li>
     </ul></div>
   </div>
-  <div class="foot-bottom">© <span id="yr"></span> مُساعد MOSAAD — جميع الحقوق محفوظة</div>
+  <div class="foot-bottom">© <span id="yr"></span> مُساعد MOSAED — جميع الحقوق محفوظة</div>
 </footer>
 <a href="#" class="whats-fab" id="whatsFab" target="_blank">WA</a>
 

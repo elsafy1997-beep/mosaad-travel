@@ -1,7 +1,7 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const fmt = n => Number(n || 0).toLocaleString('ar-EG') + ' ₽';
-let SETTINGS = {}, HOTELS = [], SERVICES = [], EVENTS = [], CITY_LIST = [];
+let SETTINGS = {}, HOTELS = [], SERVICES = [], EXTRA_SERVICES = [], EVENTS = [], CITY_LIST = [];
 
 const CURRENCY_NAMES = {
   RUB: { name: 'روبل روسي', symbol: '₽' },
@@ -55,12 +55,12 @@ async function loadSettings() {
   SETTINGS = await api('/api/settings');
   $('#heroTitle').innerHTML = SETTINGS.hero_title.replace('مُساعد', '<span>مُساعد</span>');
   $('#heroDesc').textContent = SETTINGS.hero_description;
-  $('#cWhats').textContent = '+' + SETTINGS.whatsapp_number;
-  $('#cEmail').textContent = SETTINGS.contact_email;
-  $('#cPhone').textContent = SETTINGS.contact_phone;
+  $('#cWhats').innerHTML = '<span dir="ltr" style="display:inline-block;">+' + SETTINGS.whatsapp_number + '</span>';
+  $('#cEmail').innerHTML = SETTINGS.contact_email;
+  $('#cPhone').innerHTML = SETTINGS.contact_phone;
   $('#footText').textContent = SETTINGS.footer_text;
-  $('#footPhone').textContent = 'Phone: ' + SETTINGS.contact_phone;
-  $('#footEmail').textContent = 'Email: ' + SETTINGS.contact_email;
+  $('#footPhone').innerHTML = 'الهاتف: ' + SETTINGS.contact_phone;
+  $('#footEmail').innerHTML = 'البريد: ' + SETTINGS.contact_email;
   const w = waLink('مرحباً مُساعد، أرغب بالاستفسار عن خدماتكم.');
   $('#whatsFab').href = w; $('#heroWhats').href = w; $('#footWhats').href = w;
   $('#yr').textContent = new Date().getFullYear();
@@ -86,43 +86,42 @@ async function loadSettings() {
 const unitLabel = u => ({ person: '/ للفرد', car: '/ للسيارة', day: '/ لليوم', order: '/ للطلب', from: 'يبدأ من' }[u] || '');
 
 async function loadServices() {
-  SERVICES = await api('/api/services');
-  const icons = ['[1]','[2]','[3]','[4]','[5]','[6]','[7]','[8]'];
-  $('#servicesGrid').innerHTML = SERVICES.map((s, i) => `
-    <div class="svc">
-      ${s.image
-        ? `<div class="svc-img"><img src="${s.image}" alt="${s.name}" loading="lazy"></div>`
-        : `<div class="ico">${icons[i % icons.length]}</div>`
-      }
-      <h3>${s.name}</h3>
-      <p>${s.description || ''}</p>
-      ${s.price_rub ? `<div style="margin-top:12px;font-weight:800;color:var(--gold)">${fmt(s.price_rub)} <small style="color:var(--gray);font-weight:400">${unitLabel(s.price_unit)}</small></div>` : ''}
-      <button class="btn btn-gold" style="margin-top:14px;width:100%;" onclick="requestService(${s.id})">احجز هذه الخدمة</button>
-    </div>`).join('');
+  try {
+    const r = await fetch('/api/services');
+    SERVICES = await r.json();
+    const icons = ['[1]','[2]','[3]','[4]','[5]','[6]','[7]','[8]'];
+    const unitLabel = u => ({ person: '/ للفرد', car: '/ للسيارة', day: '/ لليوم', order: '/ للطلب', from: 'يبدأ من' }[u] || '');
+    const grid = document.getElementById('servicesGrid');
+    if (!grid) return;
+    grid.innerHTML = SERVICES.map((s, i) => {
+      const hasQty = +s.allow_quantity === 1;
+      return `
+        <div class="svc" data-service-id="${s.id}">
+          ${s.image
+            ? `<div class="svc-img"><img src="${s.image}" alt="${s.name}" loading="lazy"></div>`
+            : `<div class="ico">${icons[i % icons.length]}</div>`
+          }
+          <h3>${s.name}</h3>
+          <p>${s.description || ''}</p>
+          ${s.price_rub ? `<div style="margin-top:12px;font-weight:800;color:var(--gold)">${fmt(s.price_rub)} <small style="color:var(--gray);font-weight:400">${unitLabel(s.price_unit)}</small></div>` : ''}
+          ${hasQty ? `
+            <div class="svc-qty-row" style="margin-top:10px;display:none;">
+              <label style="font-size:.85rem;font-weight:700;color:var(--navy);">${s.price_unit === 'day' ? 'عدد الأيام' : s.price_unit === 'person' ? 'عدد الأشخاص' : 'العدد'}:</label>
+              <input type="number" class="svc-qty" min="1" value="1" style="width:80px;padding:6px 10px;border:2px solid var(--border);border-radius:8px;font-family:inherit;text-align:center;font-weight:700;color:var(--navy);margin-top:6px;">
+            </div>
+          ` : ''}
+          <button class="btn btn-gold" style="margin-top:14px;width:100%;" onclick="requestService(${s.id})">احجز هذه الخدمة</button>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.warn('Services load failed', e);
+  }
 }
 async function loadDestinations() {
   const list = await api('/api/destinations');
   $('#destGrid').innerHTML = list.map(d => `
     <div class="card"><div class="card-img"><img src="${d.image || ''}" alt="${d.name_ar}"></div>
     <div class="card-body"><h3>${d.name_ar}</h3><p>${d.description || ''}</p></div></div>`).join('');
-}
-async function loadHotels() {
-  HOTELS = await api('/api/hotels');
-  CITY_LIST = [...new Set(HOTELS.map(h => h.city))];
-  $('#hotelsGrid').innerHTML = HOTELS.map(h => `
-    <div class="card">
-      <div class="card-img"><img src="${h.image || ''}" alt="${h.name}">
-      ${h.breakfast ? '<span class="badge">إفطار مجاني</span>' : ''}</div>
-      <div class="card-body">
-        <h3>${h.name}</h3>
-        <p style="color:var(--gold);font-weight:700">${'*'.repeat(h.stars || 0)} ${h.city} - ${h.room_type || ''}</p>
-        <p>${h.description || ''}</p>
-        <div class="card-foot">
-          <div class="price">${fmt(h.price_rub)} <small>/ ليلة</small></div>
-          <button class="btn btn-navy" onclick="requestHotel(${h.id})">اطلب الحجز</button>
-        </div>
-      </div>
-    </div>`).join('');
 }
 async function loadEvents() {
   const list = await api('/api/events');
@@ -188,89 +187,118 @@ async function loadRestaurants() {
 
 window.requestService = async (id) => {
   try {
-    const list = await api('/api/services');
+    const r = await fetch('/api/services');
+    const list = await r.json();
     const s = list.find(x => x.id === id);
     if (!s) return;
 
-    let msg = 'السلام عليكم، أريد حجز خدمة عبر مُساعد:';
+    const hasQty = +s.allow_quantity === 1;
+    let qty = 1;
+
+    if (hasQty) {
+      const promptText = s.price_unit === 'day' ? 'عدد الأيام:' : s.price_unit === 'person' ? 'عدد الأشخاص:' : 'العدد:';
+      const input = prompt(promptText, '1');
+      if (input === null) return; // user cancelled
+      qty = Math.max(1, +input || 1);
+    }
+
+    const total = (s.price_rub || 0) * qty;
+
+    let msg = 'السلام عليكم، أرغب بحجز خدمة عبر مُساعد:';
     msg += '\n\n';
     msg += 'الخدمة: ' + s.name;
     if (s.city)         msg += '\nالمدينة: ' + s.city;
     if (s.description)  msg += '\nالتفاصيل: ' + s.description;
-    if (s.price_rub)    msg += '\nالسعر: ' + s.price_rub.toLocaleString('ar-EG') + ' RUB';
+    if (hasQty)         msg += '\nالعدد: ' + qty;
+    if (s.price_rub)    msg += '\nالسعر: ' + total.toLocaleString('ar-EG') + ' RUB';
+    msg += '\n\nأرجو تأكيد التوفر.';
 
-    await api('/api/leads', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'عميل من الموقع',
-        phone: '-', whatsapp: '-', country: '-',
-        persons: 1, city: s.city || '',
-        services: [{ type: 'service', id: s.id, name: s.name }],
-        estimated_rub: s.price_rub || 0,
-        notes: 'حجز خدمة: ' + s.name
-      })
-    });
+    try {
+      await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'عميل من الموقع',
+          phone: '-', whatsapp: '-', country: '-',
+          persons: qty, city: s.city || '',
+          services: [{ type: 'service', id: s.id, name: s.name, qty: qty }],
+          estimated_rub: total,
+          notes: 'حجز خدمة: ' + s.name + (hasQty ? ' (عدد: ' + qty + ')' : '')
+        })
+      });
+    } catch (e) { /* ignore */ }
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
       window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
     }, 500);
-  } catch (e) {
-    toast('خطأ', 'err');
-  }
+  } catch (e) { toast('خطأ', 'err'); }
 };
 
 window.requestRestaurant = async (id) => {
   try {
-    const list = await api('/api/restaurants');
-    const r = list.find(x => x.id === id);
-    if (!r) return;
+    const r = await fetch('/api/restaurants');
+    const list = await r.json();
+    const rest = list.find(x => x.id === id);
+    if (!rest) return;
 
-    let msg = 'السلام عليكم، أريد حجز مطعم عبر مُساعد:\n\n';
-    msg += 'المطعم: ' + r.name + '\n';
-    msg += 'المدينة: ' + r.city;
-    if (r.cuisine) msg += '\nالنوع: ' + r.cuisine;
-    if (r.note)    msg += '\nملاحظات: ' + r.note;
+    let msg = 'السلام عليكم، أريد حجز مطعم عبر مُساعد:';
+    msg += '\n\n';
+    msg += 'المطعم: ' + rest.name + '\n';
+    msg += 'المدينة: ' + rest.city;
+    if (rest.cuisine) msg += '\nالنوع: ' + rest.cuisine;
 
-    await api('/api/leads', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'عميل من الموقع',
-        phone: '-', whatsapp: '-', country: '-',
-        persons: 1, city: r.city,
-        services: [{ type: 'restaurant', id: r.id, name: r.name }],
-        estimated_rub: 0,
-        notes: 'حجز مطعم: ' + r.name
-      })
-    });
+    try {
+      await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'عميل من الموقع',
+          phone: '-', whatsapp: '-', country: '-',
+          persons: 1, city: rest.city,
+          services: [{ type: 'restaurant', id: rest.id, name: rest.name }],
+          estimated_rub: 0,
+          notes: 'حجز مطعم: ' + rest.name
+        })
+      });
+    } catch (e) { /* ignore */ }
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
       window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
     }, 500);
-  } catch (e) {
-    toast('خطأ', 'err');
-  }
+  } catch (e) { toast('خطأ', 'err'); }
 };
 
 async function loadUniversities() {
-  const list = await api('/api/universities');
-  $('#uniGrid').innerHTML = list.length ? list.map(u => `
-    <div class="card">
-      <div class="card-img"><img src="${u.image || 'https://images.unsplash.com/photo-1562774053-701939374585?w=800'}" alt="${u.name_ar}"></div>
-      <div class="card-body">
-        <h3>${u.name_ar}</h3>
-        <p style="color:var(--gold);font-weight:700">${u.city}</p>
-        <p>${u.description || ''}</p>
-        <p style="font-size:.85rem;color:var(--gray)"><strong>التخصصات:</strong> ${u.specializations || '-'}</p>
-        <div class="card-foot">
-          <div class="price">${fmt(u.tuition_rub)} <small>/ سنة</small></div>
-          <a href="${waLink('أرغب بالاستفسار عن الدراسة في: ' + u.name_ar)}" target="_blank" class="btn btn-navy">استفسر</a>
-        </div>
-      </div>
-    </div>`).join('') : '<p style="text-align:center;color:var(--gray)">لا توجد جامعات متاحة حالياً.</p>';
+  try {
+    const r = await fetch('/api/universities');
+    const list = await r.json();
+    // For contract section: show universities with study_type = 'contract' or 'both'
+    const contractOnly = list.filter(u => !u.study_type || u.study_type === 'contract' || u.study_type === 'both');
+
+    const renderCard = (u) => {
+      return '<div class="card">' +
+        '<div class="card-img"><img src="' + (u.image || 'https://images.unsplash.com/photo-1562774053-701939374585?w=800') + '" alt="' + u.name_ar + '" loading="lazy"></div>' +
+        '<div class="card-body">' +
+          '<h3>' + u.name_ar + '</h3>' +
+          '<p style="color:var(--gold);font-weight:700;">' + (u.city || '') + '</p>' +
+          (u.specializations ? '<p style="font-size:.85rem;color:var(--gray);">التخصصات: ' + u.specializations + '</p>' : '') +
+          (u.description ? '<p>' + u.description + '</p>' : '') +
+          '<div class="card-foot" style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            (u.tuition_rub ? '<div class="price" style="width:100%;margin-bottom:8px;">' + u.tuition_rub.toLocaleString('ar-EG') + ' RUB / سنة</div>' : '') +
+            '<button class="btn btn-gold" style="width:100%;" onclick="requestUniversity(' + u.id + ')">استفسر عبر واتساب</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    };
+
+    const emptyMsg = '<p style="text-align:center;color:var(--gray);grid-column:1/-1;padding:40px;">لا توجد جامعات متاحة حالياً.</p>';
+    const grid = document.getElementById('universitiesGrid');
+    if (grid) grid.innerHTML = contractOnly.length ? contractOnly.map(renderCard).join('') : emptyMsg;
+  } catch (e) {
+    console.warn('Universities load failed', e);
+  }
 }
 
 /* ============ حساب سعر الفندق يوم بيوم ============ */
@@ -296,7 +324,7 @@ function calcSegment(seg) {
     const dStr = d.toISOString().split('T')[0];
     const match = seasonal.find(p => dStr >= p.date_from && dStr <= p.date_to);
     const price = match ? +match.price_rub : +hotel.price_rub;
-    const label = match ? (match.label || 'موسم خاص') : 'افتراضي';
+    const label = match ? (match.label || '') : '';
     total += price;
     const last = breakdown[breakdown.length - 1];
     if (last && last.price === price && last.label === label) {
@@ -338,7 +366,7 @@ function renderHotelSegments() {
   container.innerHTML = hotelSegments.map((seg, idx) => {
     const cityOptions = CITY_LIST.map(c => `<option value="${c}" ${seg.city === c ? 'selected' : ''}>${c}</option>`).join('');
     const filteredHotels = seg.city ? HOTELS.filter(h => h.city === seg.city) : HOTELS;
-    const hotelOptions = filteredHotels.map(h => `<option value="${h.id}" data-price="${h.price_rub}" ${seg.hotelId == h.id ? 'selected' : ''}>${h.name} - ${fmt(h.price_rub)} / ليلة</option>`).join('');
+    const hotelOptions = filteredHotels.map(h => `<option value="${h.id}" ${seg.hotelId == h.id ? 'selected' : ''}>${h.name}</option>`).join('');
     return `
     <div class="hotel-segment" data-seg-id="${seg.id}">
       <div class="hotel-segment-header">
@@ -414,19 +442,14 @@ function refreshSegmentsUI() {
 
 /* ============ PLANNER ============ */
 function fillPlanner() {
-  const svcUnit = u => ({ person: 'للفرد', car: 'للسيارة', day: 'لليوم', order: 'للطلب', from: 'يبدأ من' }[u] || '');
-  $('#pServices').innerHTML = SERVICES.map(s => `
-    <label class="check" data-id="${s.id}" data-price="${s.price_rub}" data-type="service">
-      <input type="checkbox" value="${s.id}">
-      <span>${s.name} <small style="color:var(--gold)">(${fmt(s.price_rub)} ${svcUnit(s.price_unit)})</small></span>
-    </label>`).join('');
+  renderExtraServices();
 
   const moscowEvents = EVENTS.filter(e => (e.city || '').trim() === 'موسكو');
   const sochiEvents  = EVENTS.filter(e => (e.city || '').trim() === 'سوتشي');
   const otherEvents  = EVENTS.filter(e => !['موسكو', 'سوتشي'].includes((e.city || '').trim()));
 
   const renderEvent = (e) => `
-    <label class="event-check" data-id="${e.id}" data-price="${e.price_rub}" data-type="event">
+    <label class="event-check" data-id="${e.id}" data-price="${e.price_rub}" data-type="event" data-city="${e.city || ''}">
       <input type="checkbox" value="${e.id}">
       <span>
         <span class="ev-name">${e.name}</span>
@@ -453,10 +476,7 @@ function fillPlanner() {
     inp.onchange = calculate;
     inp.oninput = calculate;
   });
-  $$('.check input').forEach(cb => cb.onchange = () => {
-    cb.closest('.check').classList.toggle('active', cb.checked);
-    calculate();
-  });
+  // (Old .check handler removed - extra services use .extra-service)
   ['#pPersons', '#pArrival', '#pDeparture'].forEach(s => {
     const el = $(s); if (el) el.onchange = calculate;
   });
@@ -464,6 +484,8 @@ function fillPlanner() {
 
   const addBtn = document.getElementById('addHotelBtn');
   if (addBtn) addBtn.onclick = addHotelSegment;
+
+  renderTourPackages();
 
   if (!hotelSegments.length) addHotelSegment();
 }
@@ -474,21 +496,44 @@ function calculate() {
   hotelSegments.forEach(seg => { hotelsTotal += calcSegment(seg).total; });
   refreshSegmentsUI();
 
-  let servicesTotal = 0, eventsTotal = 0;
-  $$('.check input:checked').forEach(cb => {
-    const label = cb.closest('.check');
-    servicesTotal += +label.dataset.price || 0;
+  let servicesTotal = 0, eventsTotal = 0, tourPackagesTotal = 0;
+
+  // Extra Services (cards, with quantity support)
+  $$('.extra-card.active').forEach(card => {
+    const price = +card.dataset.price || 0;
+    const hasQty = +card.dataset.qty === 1;
+    let qty = 1;
+    if (hasQty) {
+      const countInput = card.querySelector('.extra-count');
+      qty = countInput ? (+countInput.value || 1) : 1;
+    }
+    servicesTotal += price * qty;
   });
+
+  // Events
   $$('.event-check input[type=checkbox]:checked').forEach(cb => {
     const label = cb.closest('.event-check');
     const price = +label.dataset.price || 0;
     const tickets = +label.querySelector('.ev-tickets').value || 1;
     eventsTotal += price * tickets;
   });
-  const total = hotelsTotal + servicesTotal + eventsTotal;
+
+  // Tour packages (cards)
+  $$('.tour-card.active').forEach(card => {
+    const price = +card.dataset.price || 0;
+    const unit = card.dataset.unit;
+    let count = 1;
+    if (unit === 'day' || unit === 'tour') {
+      const countInput = card.querySelector('.tour-count');
+      count = countInput ? (+countInput.value || 1) : 1;
+    }
+    tourPackagesTotal += price * count;
+  });
+
+  const total = hotelsTotal + servicesTotal + eventsTotal + tourPackagesTotal;
   const currency = $('#pCurrency').value;
   const res = $('#pResult');
-  if (!hotelsTotal && !servicesTotal && !eventsTotal) {
+  if (!hotelsTotal && !servicesTotal && !eventsTotal && !tourPackagesTotal) {
     res.classList.remove('show');
     $('#pSubmit').disabled = true;
     return;
@@ -496,12 +541,13 @@ function calculate() {
   res.classList.add('show');
   res.innerHTML = `
     <div class="row"><span>الفنادق (${hotelSegments.length} فندق)</span><span>${fmtWithCurrency(hotelsTotal, currency)}</span></div>
+    <div class="row"><span>الجولات والتنقلات</span><span>${fmtWithCurrency(tourPackagesTotal, currency)}</span></div>
     <div class="row"><span>الفعاليات</span><span>${fmtWithCurrency(eventsTotal, currency)}</span></div>
     <div class="row"><span>الخدمات الإضافية</span><span>${fmtWithCurrency(servicesTotal, currency)}</span></div>
     <div class="total row"><span>الإجمالي التقديري</span><span>${fmtWithCurrency(total, currency)}</span></div>
     <p style="font-size:.8rem;opacity:.7;margin-top:10px">* السعر تقديري وقابل للتغيير حسب التوفر والموسم.</p>`;
   $('#pSubmit').disabled = false;
-  return { persons, hotelsTotal, servicesTotal, eventsTotal, total, currency };
+  return { persons, hotelsTotal, servicesTotal, eventsTotal, tourPackagesTotal, total, currency };
 }
 $('#pSubmit').onclick = async () => {
   const calc = calculate(); if (!calc) return;
@@ -517,12 +563,21 @@ $('#pSubmit').onclick = async () => {
     hotelLines.push('- الفندق: ' + result.hotel.name);
     hotelLines.push('- الوصول: ' + (seg.arrival || 'لم يحدد') + ' الى ' + (seg.departure || 'لم يحدد'));
     hotelLines.push('- الليالي: ' + result.nights + ' | الغرف: ' + result.rooms);
-    if (result.breakdown && result.breakdown.length) {
-      const distinct = result.breakdown.map(b => `${b.nights} ليلة (${b.from} الى ${b.to}) بسعر ${b.price.toLocaleString('ar-EG')} RUB - ${b.label}`).join(' | ');
-      hotelLines.push('- التفصيل: ' + distinct);
-    }
     hotelLines.push('- السعر: ' + result.total.toLocaleString('ar-EG') + ' RUB');
     hotelLines.push('');
+  });
+
+  const selectedTours = $$('.tour-card.active').map(card => {
+    const name = card.querySelector('.tour-card-name').textContent.trim();
+    const price = +card.dataset.price || 0;
+    const unit = card.dataset.unit;
+    let count = 1;
+    if (unit === 'day' || unit === 'tour') {
+      const countInput = card.querySelector('.tour-count');
+      count = countInput ? (+countInput.value || 1) : 1;
+    }
+    const unitLabel = unit === 'day' ? 'أيام' : unit === 'tour' ? 'جولات' : 'طلب';
+    return { name, price, unit, count, unitLabel, total: price * count };
   });
 
   const selectedEvents = $$('.event-check input[type=checkbox]:checked').map(cb => {
@@ -530,13 +585,20 @@ $('#pSubmit').onclick = async () => {
     const name = label.querySelector('.ev-name').textContent.trim();
     const tickets = +label.querySelector('.ev-tickets').value || 1;
     const price = +label.dataset.price || 0;
-    return { name, tickets, price, total: price * tickets };
+    const city = label.dataset.city || '';
+    return { name, tickets, price, city, total: price * tickets };
   });
-  const services = $$('.check input:checked').map(cb => ({
-    type: cb.closest('.check').dataset.type,
-    id: +cb.value,
-    name: cb.closest('.check').querySelector('span').textContent.trim().split('(')[0].trim()
-  }));
+  const services = $$('.extra-card.active').map(card => {
+    const name = card.querySelector('.extra-card-name').textContent.trim();
+    const price = +card.dataset.price || 0;
+    const hasQty = +card.dataset.qty === 1;
+    let qty = 1;
+    if (hasQty) {
+      const countInput = card.querySelector('.extra-count');
+      qty = countInput ? (+countInput.value || 1) : 1;
+    }
+    return { name, price, qty, hasQty, total: price * qty };
+  });
 
   const lines = [];
   lines.push('السلام عليكم، أريد تجهيز رحلة إلى روسيا عبر مُساعد.');
@@ -548,18 +610,48 @@ $('#pSubmit').onclick = async () => {
     lines.push('');
     lines.push(...hotelLines);
   }
-  if (selectedEvents.length) {
-    lines.push('الفعاليات:');
-    selectedEvents.forEach(e => lines.push('- ' + e.name + ' (' + e.tickets + ' تذكرة) - ' + e.total.toLocaleString('ar-EG') + ' RUB'));
+  if (selectedTours.length) {
+    lines.push('الجولات والتنقلات:');
+    selectedTours.forEach(t => {
+      if (t.unit === 'order') {
+        lines.push('- ' + t.name + ' (' + t.unitLabel + ') - ' + t.price.toLocaleString('ar-EG') + ' RUB');
+      } else {
+        lines.push('- ' + t.name + ' (' + t.count + ' ' + t.unitLabel + ' × ' + t.price.toLocaleString('ar-EG') + ') - ' + t.total.toLocaleString('ar-EG') + ' RUB');
+      }
+    });
     lines.push('');
+  }
+  if (selectedEvents.length) {
+    // Group events by city
+    const eventsByCity = {};
+    selectedEvents.forEach(e => {
+      const city = e.city || 'أخرى';
+      if (!eventsByCity[city]) eventsByCity[city] = [];
+      eventsByCity[city].push(e);
+    });
+    // Output grouped
+    Object.keys(eventsByCity).forEach(city => {
+      lines.push('فعاليات ' + city + ':');
+      eventsByCity[city].forEach(e => {
+        lines.push('- ' + e.name + ' (' + e.tickets + ' تذكرة) - ' + e.total.toLocaleString('ar-EG') + ' RUB');
+      });
+      lines.push('');
+    });
   }
   if (services.length) {
     lines.push('الخدمات الإضافية:');
-    services.forEach(s => lines.push('- ' + s.name));
+    services.forEach(s => {
+      if (s.hasQty && s.qty > 1) {
+        lines.push('- ' + s.name + ' (' + s.qty + ' × ' + s.price.toLocaleString('ar-EG') + ') - ' + s.total.toLocaleString('ar-EG') + ' RUB');
+      } else {
+        lines.push('- ' + s.name + ' - ' + s.total.toLocaleString('ar-EG') + ' RUB');
+      }
+    });
     lines.push('');
   }
   lines.push('الإجمالي التقديري:');
   lines.push('- الفنادق: ' + calc.hotelsTotal.toLocaleString('ar-EG') + ' RUB');
+  lines.push('- الجولات والتنقلات: ' + calc.tourPackagesTotal.toLocaleString('ar-EG') + ' RUB');
   lines.push('- الفعاليات: ' + calc.eventsTotal.toLocaleString('ar-EG') + ' RUB');
   lines.push('- الخدمات: ' + calc.servicesTotal.toLocaleString('ar-EG') + ' RUB');
   lines.push('- الإجمالي: ' + calc.total.toLocaleString('ar-EG') + ' RUB');
@@ -604,15 +696,36 @@ $('#contactForm').onsubmit = async e => {
   } catch (e) { toast(e.error || 'حدث خطأ', 'err'); }
 };
 window.requestHotel = async (id) => {
-  const h = HOTELS.find(x => x.id === id); if (!h) return;
-  const msg = 'السلام عليكم، أرغب بحجز فندق عبر مُساعد:\n\n' +
-    'الفندق: ' + h.name + '\n' +
-    'المدينة: ' + h.city + '\n' +
-    'السعر: ' + h.price_rub.toLocaleString('ar-EG') + ' RUB / ليلة';
   try {
-    await api('/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'عميل من الموقع', phone: '-', whatsapp: '-', country: '-', persons: 2, city: h.city, hotel_id: h.id, services: [], estimated_rub: h.price_rub }) });
+    const h = HOTELS.find(x => x.id === id); if (!h) return;
+
+    let msg = 'السلام عليكم، أرغب بحجز فندق عبر مُساعد:';
+    msg += '\n\n';
+    msg += 'الفندق: ' + h.name + '\n';
+    msg += 'المدينة: ' + h.city;
+    if (h.stars) msg += '\nالنجوم: ' + h.stars + ' نجوم';
+    if (h.room_type) msg += '\nنوع الغرفة: ' + h.room_type;
+    msg += '\n\nأرجو إرسال الأسعار المتاحة حسب تواريخ رحلتي.';
+
+    try {
+      await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'عميل من الموقع',
+          phone: '-', whatsapp: '-', country: '-',
+          persons: 2, city: h.city, hotel_id: h.id,
+          services: [],
+          estimated_rub: 0,
+          notes: 'استفسار عن فندق: ' + h.name
+        })
+      });
+    } catch (e) { /* ignore */ }
+
     toast('جارٍ فتح WhatsApp...', 'ok');
-    setTimeout(() => window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank'), 500);
+    setTimeout(() => {
+      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+    }, 500);
   } catch (e) { toast('خطأ', 'err'); }
 };
 window.removeHotelSegment = removeHotelSegment;
@@ -1160,6 +1273,291 @@ window.requestMedical = async function(id) {
   }
 };
 
+/* ============ SCHOLARSHIPS ============ */
+async function loadScholarships() {
+  try {
+    const r = await fetch('/api/scholarships');
+    const list = await r.json();
+
+    const renderCard = (s) => {
+      return '<div class="card">' +
+        '<div class="card-img"><img src="' + (s.image || 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800') + '" alt="' + s.name + '" loading="lazy"></div>' +
+        '<div class="card-body">' +
+          '<h3>' + s.name + '</h3>' +
+          (s.deadline ? '<p style="color:var(--gold);font-weight:700;">اخر موعد للتقديم: ' + s.deadline + '</p>' : '') +
+          (s.description ? '<p>' + s.description + '</p>' : '<p style="min-height:20px;"></p>') +
+          '<div class="card-foot" style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            (s.website ? '<a href="' + s.website + '" target="_blank" class="btn btn-navy" style="flex:1;min-width:120px;">زيارة الموقع</a>' : '') +
+            '<button class="btn btn-gold" style="flex:1;min-width:120px;" onclick="requestScholarship(' + s.id + ')">استفسر عبر واتساب</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    };
+
+    const emptyMsg = '<p style="text-align:center;color:var(--gray);grid-column:1/-1;padding:40px;">لا توجد منح متاحة حالياً.</p>';
+    const grid = document.getElementById('scholarshipsGrid');
+    if (grid) grid.innerHTML = list.length ? list.map(renderCard).join('') : emptyMsg;
+  } catch (e) {
+    console.warn('Scholarships load failed', e);
+  }
+}
+
+window.requestScholarship = async function(id) {
+  try {
+    const r = await fetch('/api/scholarships');
+    const list = await r.json();
+    const s = list.find(x => x.id === id);
+    if (!s) return;
+
+    let msg = 'السلام عليكم، أرغب بالاستفسار عن منحة:';
+    msg += '\n\n';
+    msg += 'المنحة: ' + s.name;
+    if (s.deadline) msg += '\nاخر موعد للتقديم: ' + s.deadline;
+    if (s.website) msg += '\nرابط المنحة: ' + s.website;
+    msg += '\n\nأرجو معلومات عن التقديم والمواعيد.';
+
+    try {
+      await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'عميل من الموقع',
+          phone: '-', whatsapp: '-', country: '-',
+          persons: 1, city: '',
+          services: [{ type: 'scholarship', id: s.id, name: s.name }],
+          estimated_rub: 0,
+          notes: 'استفسار عن منحة: ' + s.name
+        })
+      });
+    } catch (e) {}
+
+    toast('جارٍ فتح WhatsApp...', 'ok');
+    setTimeout(() => {
+      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+    }, 500);
+  } catch (e) {
+    toast('خطأ', 'err');
+  }
+};
+
+window.requestUniversity = async function(id) {
+  try {
+    const r = await fetch('/api/universities');
+    const list = await r.json();
+    const u = list.find(x => x.id === id);
+    if (!u) return;
+
+    let msg = 'السلام عليكم، أرغب بالاستفسار عن الدراسة في:';
+    msg += '\n\n';
+    msg += 'الجامعة: ' + (u.name_ar || u.name_en || u.name_ru);
+    if (u.city) msg += '\nالمدينة: ' + u.city;
+    if (u.tuition_rub) msg += '\nالرسوم: ' + u.tuition_rub.toLocaleString('ar-EG') + ' RUB';
+    if (u.website) msg += '\nالموقع: ' + u.website;
+    msg += '\n\nأرجو معلومات عن التقديم.';
+
+    try {
+      await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'عميل من الموقع',
+          phone: '-', whatsapp: '-', country: '-',
+          persons: 1, city: u.city || '',
+          services: [{ type: 'university', id: u.id, name: u.name_ar }],
+          estimated_rub: u.tuition_rub || 0,
+          notes: 'استفسار عن جامعة: ' + u.name_ar
+        })
+      });
+    } catch (e) {}
+
+    toast('جارٍ فتح WhatsApp...', 'ok');
+    setTimeout(() => {
+      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+    }, 500);
+  } catch (e) {
+    toast('خطأ', 'err');
+  }
+};
+
+/* ============ TOURS & TRANSFERS ============ */
+let TOUR_PACKAGES = [];
+
+async function loadTourPackages() {
+  try {
+    const r = await fetch('/api/tours');
+    TOUR_PACKAGES = await r.json();
+  } catch (e) {
+    console.warn('Tours load failed', e);
+    TOUR_PACKAGES = [];
+  }
+}
+
+function renderTourPackages() {
+  const container = document.getElementById('pTourPackages');
+  if (!container) return;
+
+  if (!TOUR_PACKAGES.length) {
+    container.innerHTML = '<p style="text-align:center;color:var(--gray);grid-column:1/-1;padding:20px;">لا توجد جولات متاحة حالياً.</p>';
+    return;
+  }
+
+  const unitLabel = u => ({ order: 'للطلب', day: 'لليوم', tour: 'للجولة' }[u] || 'للطلب');
+
+  container.innerHTML = TOUR_PACKAGES.map(t => {
+    const isCountable = t.price_unit === 'day' || t.price_unit === 'tour';
+    return `
+      <div class="tour-card" data-id="${t.id}" data-price="${t.price_rub}" data-unit="${t.price_unit}">
+        <div class="tour-card-head">
+          <div class="tour-card-name">${t.name}</div>
+          <div class="tour-card-price">${fmt(t.price_rub)} / ${unitLabel(t.price_unit)}</div>
+        </div>
+        ${t.description ? `<div class="tour-card-desc">${t.description}</div>` : ''}
+        ${t.note ? `<div class="tour-card-note">${t.note}</div>` : ''}
+        ${isCountable ? `
+          <div class="tour-count-row">
+            <label>${t.price_unit === 'day' ? 'عدد الأيام' : 'عدد الجولات'}:</label>
+            <input type="number" class="tour-count" min="1" value="1">
+          </div>
+          <div class="tour-total"></div>
+        ` : ''}
+      </div>`;
+  }).join('');
+
+  // Wire events
+  container.querySelectorAll('.tour-card').forEach(card => {
+    card.onclick = (e) => {
+      // Ignore clicks on input
+      if (e.target.tagName === 'INPUT') return;
+      const isActive = card.classList.toggle('active');
+      const countRow = card.querySelector('.tour-count-row');
+      const totalEl = card.querySelector('.tour-total');
+      if (countRow && totalEl) {
+        if (isActive) {
+          countRow.classList.add('show');
+          totalEl.classList.add('show');
+          updateTourTotal(card);
+        } else {
+          countRow.classList.remove('show');
+          totalEl.classList.remove('show');
+        }
+      }
+      calculate();
+    };
+  });
+
+  container.querySelectorAll('.tour-count').forEach(inp => {
+    inp.onclick = (e) => e.stopPropagation();
+    inp.oninput = () => {
+      updateTourTotal(inp.closest('.tour-card'));
+      calculate();
+    };
+    inp.onchange = () => {
+      updateTourTotal(inp.closest('.tour-card'));
+      calculate();
+    };
+  });
+}
+
+function updateTourTotal(card) {
+  const price = +card.dataset.price || 0;
+  const unit = card.dataset.unit;
+  const countInput = card.querySelector('.tour-count');
+  const totalEl = card.querySelector('.tour-total');
+  if (!totalEl) return;
+  let count = 1;
+  if (unit === 'day' || unit === 'tour') {
+    count = countInput ? (+countInput.value || 1) : 1;
+  }
+  const total = price * count;
+  totalEl.textContent = 'المجموع: ' + fmt(total);
+}
+
+/* ============ EXTRA SERVICES ============ */
+async function loadExtraServices() {
+  try {
+    const r = await fetch('/api/extra-services');
+    EXTRA_SERVICES = await r.json();
+  } catch (e) {
+    console.warn('Extra services load failed', e);
+    EXTRA_SERVICES = [];
+  }
+}
+
+function renderExtraServices() {
+  const container = document.getElementById('pExtraServices');
+  if (!container) return;
+
+  if (!EXTRA_SERVICES.length) {
+    container.innerHTML = '<p style="text-align:center;color:var(--gray);grid-column:1/-1;padding:20px;">لا توجد خدمات إضافية متاحة حالياً.</p>';
+    return;
+  }
+
+  const unitLabel = u => ({ person: 'للفرد', car: 'للسيارة', day: 'لليوم', order: 'للطلب', from: 'يبدأ من' }[u] || 'للطلب');
+
+  container.innerHTML = EXTRA_SERVICES.map(s => {
+    const hasQty = +s.allow_quantity === 1;
+    const isFree = !s.price_rub || s.price_rub === 0;
+    return `
+      <div class="extra-card" data-id="${s.id}" data-price="${s.price_rub}" data-qty="${hasQty ? 1 : 0}">
+        <div class="extra-card-head">
+          <div class="extra-card-name">${s.name}</div>
+          <div class="extra-card-price ${isFree ? 'free' : ''}">${isFree ? 'مجاناً' : fmt(s.price_rub) + ' / ' + unitLabel(s.price_unit)}</div>
+        </div>
+        ${s.description ? `<div class="extra-card-desc">${s.description}</div>` : ''}
+        ${s.note ? `<div class="extra-card-note">${s.note}</div>` : ''}
+        ${hasQty ? `
+          <div class="extra-count-row">
+            <label>العدد:</label>
+            <input type="number" class="extra-count" min="1" value="1">
+          </div>
+          <div class="extra-total"></div>
+        ` : ''}
+      </div>`;
+  }).join('');
+
+  // Wire events
+  container.querySelectorAll('.extra-card').forEach(card => {
+    card.onclick = (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      const isActive = card.classList.toggle('active');
+      const countRow = card.querySelector('.extra-count-row');
+      const totalEl = card.querySelector('.extra-total');
+      if (countRow && totalEl) {
+        if (isActive) {
+          countRow.classList.add('show');
+          totalEl.classList.add('show');
+          updateExtraTotal(card);
+        } else {
+          countRow.classList.remove('show');
+          totalEl.classList.remove('show');
+        }
+      }
+      calculate();
+    };
+  });
+
+  container.querySelectorAll('.extra-count').forEach(inp => {
+    inp.onclick = (e) => e.stopPropagation();
+    inp.oninput = () => {
+      updateExtraTotal(inp.closest('.extra-card'));
+      calculate();
+    };
+    inp.onchange = () => {
+      updateExtraTotal(inp.closest('.extra-card'));
+      calculate();
+    };
+  });
+}
+
+function updateExtraTotal(card) {
+  const price = +card.dataset.price || 0;
+  const countInput = card.querySelector('.extra-count');
+  const totalEl = card.querySelector('.extra-total');
+  if (!totalEl) return;
+  const count = countInput ? (+countInput.value || 1) : 1;
+  totalEl.textContent = 'المجموع: ' + fmt(price * count);
+}
+
 (async () => {
   try {
     await loadSettings();
@@ -1182,13 +1580,12 @@ window.requestMedical = async function(id) {
           <p style="color:var(--gold);font-weight:700">${'*'.repeat(h.stars || 0)} ${h.city} - ${h.room_type || ''}</p>
           <p>${h.description || ''}</p>
           <div class="card-foot">
-            <div class="price">${fmt(h.price_rub)} <small>/ ليلة</small></div>
-            <button class="btn btn-navy" onclick="requestHotel(${h.id})">اطلب الحجز</button>
+            <button class="btn btn-navy" style="width:100%;" onclick="requestHotel(${h.id})">احسب السعر واحجز</button>
           </div>
         </div>
       </div>`).join('');
 
-    await Promise.all([loadServices(), loadDestinations(), loadEvents(), loadRestaurants(), loadUniversities(), loadAds(), loadMedical()]);
+    await Promise.all([loadServices(), loadDestinations(), loadEvents(), loadRestaurants(), loadUniversities(), loadAds(), loadMedical(), loadScholarships(), loadTourPackages(), loadExtraServices()]);
     fillPlanner();
   } catch (e) { console.error(e); toast('تعذر تحميل بعض البيانات', 'err'); }
 })();

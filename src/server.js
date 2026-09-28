@@ -182,6 +182,21 @@ app.get('/api/medical', (req, res) => {
   ok(res, db.prepare(q).all(...p));
 });
 
+/* ===== PUBLIC SCHOLARSHIPS API ===== */
+app.get('/api/scholarships', (req, res) => {
+  ok(res, db.prepare('SELECT * FROM scholarships WHERE active=1 ORDER BY id DESC').all());
+});
+
+/* ===== PUBLIC TOURS API ===== */
+app.get('/api/tours', (req, res) => {
+  ok(res, db.prepare('SELECT * FROM tours WHERE active=1 ORDER BY id').all());
+});
+
+/* ===== PUBLIC EXTRA SERVICES API ===== */
+app.get('/api/extra-services', (req, res) => {
+  ok(res, db.prepare('SELECT * FROM extra_services WHERE active=1 ORDER BY id').all());
+});
+
 /* ===== AUTH ===== */
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body || {};
@@ -255,9 +270,9 @@ function crud(table, fields) {
 
 app.use('/api/admin/hotels',       crud('hotels',       ['name','city','stars','room_type','breakfast','price_rub','description','address','image','active']));
 app.use('/api/admin/restaurants',  crud('restaurants',  ['name','city','cuisine','note','image','active']));
-app.use('/api/admin/services',     crud('services',     ['name','description','price_rub','price_unit','city','image','active']));
+app.use('/api/admin/services',     crud('services',     ['name','description','price_rub','price_unit','allow_quantity','city','image','active']));
 app.use('/api/admin/events',       crud('events',       ['name','city','event_date','venue','price_rub','description','image','active']));
-app.use('/api/admin/universities', crud('universities', ['name_ar','name_ru','name_en','city','specializations','tuition_rub','housing','image','description','website','active']));
+app.use('/api/admin/universities', crud('universities', ['name_ar','name_ru','name_en','city','specializations','tuition_rub','housing','image','description','website','study_type','active']));
 app.use('/api/admin/destinations', crud('destinations', ['name_ar','name_ru','name_en','description','image','active','sort_order']));
 
 /* ===== HOTEL PRICES ===== */
@@ -540,6 +555,42 @@ app.delete('/api/admin/medical/:id', (req, res) => {
   ok(res, { ok: true });
 });
 
+/* ===== ADMIN SCHOLARSHIPS ===== */
+app.use('/api/admin/scholarships', crud('scholarships', ['name','description','website','deadline','image','active']));
+
+/* ===== ADMIN TOURS ===== */
+app.use('/api/admin/tours', crud('tours', ['name','description','price_rub','price_unit','note','active']));
+
+/* ===== ADMIN EXTRA SERVICES ===== */
+app.use('/api/admin/extra-services', crud('extra_services', ['name','description','price_rub','price_unit','note','allow_quantity','active']));
+
+/* ===== BULK DELETE ===== */
+app.delete('/api/admin/leads/all', (req, res) => {
+  try {
+    const count = db.prepare('SELECT COUNT(*) c FROM leads').get().c;
+    db.prepare('DELETE FROM leads').run();
+    ok(res, { ok: true, deleted: count });
+  } catch (e) {
+    console.error(e);
+    err(res, 500, 'خطأ أثناء الحذف');
+  }
+});
+
+app.delete('/api/admin/trip-plans/all', (req, res) => {
+  try {
+    const count = db.prepare('SELECT COUNT(*) c FROM trip_plans').get().c;
+    // Delete activities first (FK constraint)
+    db.prepare('DELETE FROM trip_activities').run();
+    // Then delete plans
+    db.prepare('DELETE FROM trip_plans').run();
+    console.log('✅ Deleted', count, 'trip plans');
+    ok(res, { ok: true, deleted: count });
+  } catch (e) {
+    console.error(e);
+    err(res, 500, 'خطأ أثناء الحذف');
+  }
+});
+
 /* ===== STATS ===== */
 app.get('/api/admin/stats', (req, res) => ok(res, {
   leads_total:         db.prepare('SELECT COUNT(*) c FROM leads').get().c,
@@ -551,6 +602,9 @@ app.get('/api/admin/stats', (req, res) => ok(res, {
   events_total:        db.prepare('SELECT COUNT(*) c FROM events').get().c,
   universities_total:  db.prepare('SELECT COUNT(*) c FROM universities').get().c,
   medical_total:       db.prepare('SELECT COUNT(*) c FROM medical_centers').get().c,
+  scholarships_total:  db.prepare('SELECT COUNT(*) c FROM scholarships').get().c,
+  tours_total:         db.prepare('SELECT COUNT(*) c FROM tours').get().c,
+  extra_services_total: db.prepare('SELECT COUNT(*) c FROM extra_services').get().c,
   revenue_estimate:    db.prepare('SELECT COALESCE(SUM(estimated_rub),0) s FROM leads').get().s,
   by_city:             db.prepare(`SELECT city, COUNT(*) c FROM leads WHERE city<>'' GROUP BY city ORDER BY c DESC LIMIT 8`).all(),
   recent_leads:        db.prepare('SELECT id,code,name,city,estimated_rub,status,created_at FROM leads ORDER BY id DESC LIMIT 5').all()
