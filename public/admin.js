@@ -34,10 +34,11 @@ $$('#sideNav a[data-view]').forEach(a => {
     loadView(a.dataset.view);
   };
 });
-const TITLES = { dashboard: 'الرئيسية', leads: 'الطلبات', hotels: 'الفنادق', services: 'الخدمات', 'extra-services': 'الخدمات الإضافية', events: 'الفعاليات', universities: 'الجامعات', scholarships: 'المنح الدراسية', tours: 'الجولات والتنقلات', destinations: 'الوجهات', restaurants: 'المطاعم', ads: 'الإعلانات', trips: 'جداول العملاء', templates: 'قوالب الجداول', medical: 'العلاج', settings: 'الإعدادات' };
+const TITLES = { dashboard: 'الرئيسية', visits: 'الزوار', leads: 'الطلبات', hotels: 'الفنادق', services: 'الخدمات', 'extra-services': 'الخدمات الإضافية', events: 'الفعاليات', universities: 'الجامعات', scholarships: 'المنح الدراسية', tours: 'الجولات والتنقلات', destinations: 'الوجهات', restaurants: 'المطاعم', ads: 'الإعلانات', trips: 'جداول العملاء', templates: 'قوالب الجداول', medical: 'العلاج', settings: 'الإعدادات' };
 async function loadView(view) {
   $('#viewTitle').textContent = TITLES[view] || view;
   if (view === 'dashboard') return renderDashboard();
+  if (view === 'visits') return renderVisits();
   if (view === 'leads') return renderLeads();
   if (view === 'settings') return renderSettings();
   if (view === 'ads') return renderAdsAdmin();
@@ -69,9 +70,11 @@ async function renderDashboard() {
 const SCHEMAS = {
   hotels: { title: 'الفنادق', fields: [
     { k: 'name', l: 'الاسم', type: 'text', required: 1 }, { k: 'city', l: 'المدينة', type: 'text', required: 1 },
-    { k: 'stars', l: 'النجوم', type: 'number' }, { k: 'room_type', l: 'نوع الغرفة', type: 'text' },
+    { k: 'stars', l: 'النجوم', type: 'number' },
     { k: 'breakfast', l: 'إفطار', type: 'bool' }, { k: 'price_rub', l: 'السعر الافتراضي (RUB)', type: 'number' },
     { k: 'address', l: 'العنوان', type: 'text' }, { k: 'image', l: 'رابط الصورة', type: 'text' },
+    { k: 'website', l: 'رابط الفندق (Booking / الموقع الرسمي)', type: 'text' },
+    { k: 'sort_order', l: 'ترتيب الفندق (الأصغر = يظهر أولاً)', type: 'number' },
     { k: 'description', l: 'الوصف', type: 'textarea' }, { k: 'active', l: 'مفعّل', type: 'bool' }
   ], cols: ['name', 'city', 'stars', 'price_rub', 'active'] },
   services: { title: 'الخدمات', fields: [
@@ -157,7 +160,7 @@ async function renderTable(entity) {
   $('#viewContent').innerHTML = `
     <button class="btn btn-gold" id="addBtn" style="margin-bottom:16px">+ إضافة جديد</button>
     <table><thead><tr><th>ID</th>${cols.map(c => `<th>${c}</th>`).join('')}<th>إجراءات</th></tr></thead>
-      <tbody>${rows.length ? rows.map(r => `<tr><td>${r.id}</td>${cols.map(c => { let v = r[c]; if (typeof v === 'number' && c.includes('price')) v = fmt(v); if (c === 'active') v = v ? 'نعم' : 'لا'; return `<td>${v ?? ''}</td>`; }).join('')}<td class="row-actions"><button class="icon-btn" data-edit="${r.id}">تعديل</button>${isHotels ? `<button class="icon-btn" data-prices="${r.id}" style="background:var(--gold);color:var(--navy);">الأسعار</button>` : ''}<button class="icon-btn del" data-del="${r.id}">حذف</button></td></tr>`).join('') : `<tr><td colspan="${cols.length + 2}" style="text-align:center;color:var(--gray);padding:30px">لا توجد بيانات بعد</td></tr>`}</tbody></table>`;
+      <tbody>${rows.length ? rows.map(r => `<tr><td>${r.id}</td>${cols.map(c => { let v = r[c]; if (typeof v === 'number' && c.includes('price')) v = fmt(v); if (c === 'active') v = v ? 'نعم' : 'لا'; return `<td>${v ?? ''}</td>`; }).join('')}<td class="row-actions"><button class="icon-btn" data-edit="${r.id}">تعديل</button>${isHotels ? `<button class="icon-btn" data-rooms="${r.id}" style="background:var(--navy);color:#fff;">🏠 أنواع الغرف</button><button class="icon-btn" data-meal-plans="${r.id}" style="background:#dc2626;color:#fff;">🍽️ خطط الوجبات</button>` : ''}<button class="icon-btn del" data-del="${r.id}">حذف</button></td></tr>`).join('') : `<tr><td colspan="${cols.length + 2}" style="text-align:center;color:var(--gray);padding:30px">لا توجد بيانات بعد</td></tr>`}</tbody></table>`;
   $('#addBtn').onclick = () => openModal(entity, null, schema);
   $$('[data-edit]').forEach(b => b.onclick = () => openModal(entity, rows.find(x => x.id == b.dataset.edit), schema));
   $$('[data-del]').forEach(b => b.onclick = async () => {
@@ -166,9 +169,14 @@ async function renderTable(entity) {
     toast('تم الحذف', 'ok'); renderTable(entity);
   });
   if (isHotels) {
-    $$('[data-prices]').forEach(b => b.onclick = () => {
-      const hotel = rows.find(x => x.id == b.dataset.prices);
-      openPricesModal(hotel);
+    
+    $$('[data-rooms]').forEach(b => b.onclick = () => {
+      const hotel = rows.find(x => x.id == b.dataset.rooms);
+      openRoomTypesModal(hotel);
+    });
+    $$('[data-meal-plans]').forEach(b => b.onclick = () => {
+      const hotel = rows.find(x => x.id == b.dataset.mealPlans);
+      openMealPlansModal(hotel);
     });
   }
 }
@@ -266,6 +274,710 @@ function openImageUploader(inputId) {
     }
   };
   input.click();
+}
+
+async function openRoomTypesModal(hotel) {
+  $('#modalContent').innerHTML = `
+    <h2>أنواع غرف — ${hotel.name}</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">أضف أنواع الغرف المتاحة في هذا الفندق.</p>
+    <button class="btn btn-gold" id="addRoomTypeBtn" style="margin-bottom:16px;">+ إضافة نوع غرفة</button>
+    <div id="roomTypesList"><p style="text-align:center;color:var(--gray);">جاري التحميل...</p></div>
+    <div class="modal-actions">
+      <button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button>
+    </div>`;
+  $('#modalBg').classList.add('show');
+
+  const loadRoomTypes = async () => {
+    try {
+      const list = await api('/api/admin/hotels/' + hotel.id + '/room-types');
+      if (!list.length) {
+        $('#roomTypesList').innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px;">لا توجد أنواع غرف بعد.</p>';
+        return;
+      }
+      $('#roomTypesList').innerHTML = `
+        <table style="width:100%;font-size:.88rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--shadow);border-collapse:collapse;">
+          <thead><tr>
+            <th style="padding:10px;">ID</th>
+            <th style="padding:10px;">الاسم</th>
+            <th style="padding:10px;">بالغين</th>
+            <th style="padding:10px;">أطفال</th>
+            <th style="padding:10px;">إجمالي</th>
+            <th style="padding:10px;">⚠️ تواريخ ناقصة</th>
+            <th style="padding:10px;">الحالة</th>
+            <th style="padding:10px;">إجراءات</th>
+          </tr></thead>
+          <tbody>${list.map(r => `<tr>
+            <td style="padding:10px;">${r.id}</td>
+            <td style="padding:10px;">${r.name}</td>
+            <td style="padding:10px;">${r.max_adults}</td>
+            <td style="padding:10px;">${r.max_children}</td>
+            <td style="padding:10px;">${r.max_total}</td>
+            <td style="padding:10px;" id="gaps-${r.id}">—</td>
+            <td style="padding:10px;">${r.active ? '✅' : '❌'}</td>
+            <td style="padding:10px;white-space:nowrap;">
+              <button class="icon-btn" data-edit-room="${r.id}" title="تعديل">✏️</button>
+              <button class="icon-btn" data-edit-prices="${r.id}" style="background:var(--gold);color:var(--navy);" title="الأسعار">💰</button>
+              <button class="icon-btn" data-child-policies="${r.id}" style="background:#7c3aed;color:#fff;" title="سياسات الأطفال">👶</button>
+              <button class="icon-btn" data-occupancy-rules="${r.id}" style="background:#0891b2;color:#fff;" title="قواعد الإشغال">📊</button>
+              <button class="icon-btn del" data-del-room="${r.id}" title="حذف">🗑️</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+
+      $$('[data-edit-room]').forEach(b => b.onclick = () => {
+        const row = list.find(x => x.id == b.dataset.editRoom);
+        openRoomTypeForm(hotel, row, loadRoomTypes);
+      });
+      // ✅ جلب الثغرات لكل نوع غرفة
+      list.forEach(async (r) => {
+        try {
+          const coverage = await api('/api/admin/room-types/' + r.id + '/coverage');
+          const el = document.getElementById('gaps-' + r.id);
+          if (!el) return;
+          
+          if (!coverage.has_prices) {
+            el.innerHTML = '<span style="color:#dc2626;font-size:.75rem;font-weight:700;">⚠️ لا توجد أسعار</span>';
+          } else if (coverage.gaps.length === 0) {
+            el.innerHTML = '<span style="color:#16a34a;font-size:.8rem;font-weight:700;">✅ مكتمل</span>';
+          } else {
+            const fmt = (d) => {
+              const [y, m, day] = d.split('-');
+              return day + '.' + m + '.' + y;
+            };
+            const gapLines = coverage.gaps.map(g => {
+              return '<div style="font-size:.75rem;color:#dc2626;font-weight:600;margin-bottom:3px;">❌ من ' + fmt(g.from) + ' → ' + fmt(g.to) + '</div>';
+            }).join('');
+            el.innerHTML = gapLines;
+          }
+        } catch (e) {
+          console.error('coverage error:', r.id, e);
+        }
+      });
+      
+      $$('[data-del-room]').forEach(b => b.onclick = async () => {
+        if (!confirm('حذف هذا النوع مع كل أسعاره؟')) return;
+        await api('/api/admin/room-types/' + b.dataset.delRoom, { method: 'DELETE' });
+        toast('تم الحذف', 'ok');
+        loadRoomTypes();
+      });
+      $$('[data-edit-prices]').forEach(b => b.onclick = () => {
+        const row = list.find(x => x.id == b.dataset.editPrices);
+        openRoomPricesModal(hotel, row);
+      });
+      $$('[data-child-policies]').forEach(b => b.onclick = () => {
+        const row = list.find(x => x.id == b.dataset.childPolicies);
+        openChildPoliciesModal(hotel, row);
+      });
+      $$('[data-occupancy-rules]').forEach(b => b.onclick = () => {
+        const row = list.find(x => x.id == b.dataset.occupancyRules);
+        openOccupancyRulesModal(hotel, row);
+      });
+    } catch (e) {
+      $('#roomTypesList').innerHTML = '<p style="text-align:center;color:#dc2626;">خطأ في التحميل</p>';
+    }
+  };
+
+  $('#addRoomTypeBtn').onclick = () => openRoomTypeForm(hotel, null, loadRoomTypes);
+  loadRoomTypes();
+}
+
+function openRoomTypeForm(hotel, row, onDone) {
+  const isEdit = !!row;
+  const r = row || { max_adults: 2, max_children: 0, max_total: 2, active: 1 };
+
+  $('#modalContent').innerHTML = `
+    <h2>${isEdit ? 'تعديل' : 'إضافة'} نوع غرفة — ${hotel.name}</h2>
+    <form id="roomTypeForm" style="display:grid;gap:12px;">
+      <div class="field"><label>اسم النوع *</label><input name="name" value="${r.name || ''}" required></div>
+      <div class="field"><label>الوصف</label><textarea name="description" rows="2">${r.description || ''}</textarea></div>
+      <div class="field"><label>رابط الصورة</label><input name="image" value="${r.image || ''}" placeholder="https://..."></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="field"><label>أقصى بالغين</label><input type="number" name="max_adults" value="${r.max_adults}" min="1"></div>
+        <div class="field"><label>أقصى أطفال</label><input type="number" name="max_children" value="${r.max_children}" min="0"></div>
+        <div class="field"><label>أقصى إجمالي</label><input type="number" name="max_total" value="${r.max_total}" min="1"></div>
+      </div>
+      <div class="field"><label>الترتيب</label><input type="number" name="sort_order" value="${r.sort_order || 0}"></div>
+      <div class="field" style="background:#f0f9ff;padding:12px;border-radius:8px;border:1px solid #bae6fd;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#0c4a6e;">
+          <input type="checkbox" name="meals_enabled" ${r.meals_enabled !== 0 ? 'checked' : ''} style="width:18px;height:18px;">
+          🍽️ تفعيل خطط الوجبات لهذا النوع
+        </label>
+        <p style="font-size:.8rem;color:#0369a1;margin-top:6px;">
+          إذا معطّل، لن تظهر خطط الوجبات في Trip Planner لهذا النوع.
+        </p>
+      </div>
+      <div class="field"><label><input type="checkbox" name="active" ${r.active ? 'checked' : ''}> مفعّل</label></div>
+      <div class="modal-actions">
+        <button type="button" class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إلغاء</button>
+        <button type="submit" class="btn btn-gold">حفظ</button>
+      </div>
+    </form>`;
+
+  $('#roomTypeForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      name: fd.get('name'),
+      description: fd.get('description'),
+      image: fd.get('image'),
+      max_adults: +fd.get('max_adults'),
+      max_children: +fd.get('max_children'),
+      max_total: +fd.get('max_total'),
+      meals_enabled: fd.get('meals_enabled') ? 1 : 0,
+      sort_order: +fd.get('sort_order'),
+      active: fd.get('active') ? 1 : 0
+    };
+    try {
+      if (isEdit) {
+        await api('/api/admin/room-types/' + row.id, { method: 'PUT', body: JSON.stringify(data) });
+      } else {
+        await api('/api/admin/hotels/' + hotel.id + '/room-types', { method: 'POST', body: JSON.stringify(data) });
+      }
+      toast('تم الحفظ', 'ok');
+      onDone();
+    } catch (err) { toast(err.message, 'err'); }
+  };
+}
+
+async function openRoomPricesModal(hotel, roomType) {
+  $('#modalContent').innerHTML = `
+    <h2>أسعار: ${roomType.name}</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${hotel.name}</p>
+    <form id="addPriceForm" style="background:var(--light);padding:16px;border-radius:12px;margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;font-size:.95rem;">+ إضافة فترة سعر جديدة</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>من تاريخ</label><input type="date" name="date_from" required></div>
+        <div class="field"><label>إلى تاريخ</label><input type="date" name="date_to" required></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+        <div class="field"><label>سعر فردي (RUB)</label><input type="number" name="price_single" placeholder="مثال: 24500"></div>
+        <div class="field"><label>سعر مزدوج (RUB)</label><input type="number" name="price_double" placeholder="مثال: 28500"></div>
+        <div class="field"><label>سعر ثلاثي (اختياري)</label><input type="number" name="price_triple"></div>
+        <div class="field"><label>سعر رباعي (اختياري)</label><input type="number" name="price_quad"></div>
+      </div>
+      <button type="submit" class="btn btn-gold" style="margin-top:12px;">إضافة الفترة</button>
+    </form>
+    <h4 style="margin-bottom:10px;font-size:.95rem;">الفترات الحالية:</h4>
+    <div id="roomPricesList"><p style="text-align:center;color:var(--gray);">جاري التحميل...</p></div>
+    <div class="modal-actions">
+      <button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button>
+    </div>`;
+
+  const loadPrices = async () => {
+    try {
+      const list = await api('/api/admin/room-types/' + roomType.id + '/prices');
+      if (!list.length) {
+        $('#roomPricesList').innerHTML = '<p style="text-align:center;color:var(--gray);padding:14px;">لا توجد فترات أسعار بعد.</p>';
+        return;
+      }
+      
+      // ✅ التحقق من الثغرات
+      const sorted = [...list].sort((a, b) => a.date_from.localeCompare(b.date_from));
+      const gaps = [];
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const curr = sorted[i];
+        const next = sorted[i + 1];
+        const currEnd = new Date(curr.date_to);
+        const nextStart = new Date(next.date_from);
+        const diffDays = Math.round((nextStart - currEnd) / 86400000);
+        if (diffDays > 1) {
+          const gapStart = new Date(currEnd);
+          gapStart.setDate(gapStart.getDate() + 1);
+          const gapEnd = new Date(nextStart);
+          gapEnd.setDate(gapEnd.getDate() - 1);
+          gaps.push(gapStart.toISOString().split('T')[0] + ' → ' + gapEnd.toISOString().split('T')[0]);
+        }
+      }
+      
+      let gapWarning = '';
+      if (gaps.length) {
+        gapWarning = `<div style="background:#fef2f2;border:1px solid #dc2626;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:.85rem;color:#991b1b;">
+          ⚠️ <strong>تحذير:</strong> يوجد ثغرات في الفترات:
+          <ul style="margin:6px 0 0 16px;">${gaps.map(g => '<li>' + g + '</li>').join('')}</ul>
+          <p style="margin-top:6px;">أضف فترات جديدة لتغطية هذه الثغرات.</p>
+        </div>`;
+      }
+      $('#roomPricesList').innerHTML = gapWarning + `
+        <table style="width:100%;font-size:.85rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--shadow);border-collapse:collapse;">
+          <thead><tr>
+            <th style="padding:8px;">من</th><th style="padding:8px;">إلى</th>
+            <th style="padding:8px;">فردي</th><th style="padding:8px;">مزدوج</th>
+            <th style="padding:8px;">ثلاثي</th><th style="padding:8px;">رباعي</th>
+            <th style="padding:8px;"></th>
+          </tr></thead>
+          <tbody>${list.map(p => `<tr>
+            <td style="padding:8px;">${p.date_from}</td>
+            <td style="padding:8px;">${p.date_to}</td>
+            <td style="padding:8px;">${p.price_single ? p.price_single.toLocaleString('ar-EG') : '—'}</td>
+            <td style="padding:8px;">${p.price_double ? p.price_double.toLocaleString('ar-EG') : '—'}</td>
+            <td style="padding:8px;">${p.price_triple ? p.price_triple.toLocaleString('ar-EG') : '—'}</td>
+            <td style="padding:8px;">${p.price_quad ? p.price_quad.toLocaleString('ar-EG') : '—'}</td>
+            <td style="padding:8px;"><button class="icon-btn del" data-del-price="${p.id}">حذف</button></td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+
+      $$('[data-del-price]').forEach(b => b.onclick = async () => {
+        if (!confirm('حذف هذه الفترة؟')) return;
+        await api('/api/admin/room-prices/' + b.dataset.delPrice, { method: 'DELETE' });
+        toast('تم الحذف', 'ok');
+        loadPrices();
+      });
+    } catch (e) {
+      $('#roomPricesList').innerHTML = '<p style="text-align:center;color:#dc2626;">خطأ في التحميل</p>';
+    }
+  };
+
+  $('#addPriceForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    
+    // ✅ التحقق من وجود سعر واحد على الأقل
+    const hasPrice = data.price_single || data.price_double || data.price_triple || data.price_quad;
+    if (!hasPrice) {
+      toast('يجب إدخال سعر واحد على الأقل (فردي أو مزدوج أو ثلاثي أو رباعي)', 'err');
+      return;
+    }
+    
+    try {
+      await api('/api/admin/room-types/' + roomType.id + '/prices', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      toast('تمت الإضافة', 'ok');
+      e.target.reset();
+      loadPrices();
+    } catch (err) { toast(err.message, 'err'); }
+  };
+
+  loadPrices();
+}
+
+/* ===== CHILD POLICIES MODAL ===== */
+async function openChildPoliciesModal(hotel, roomType) {
+  $('#modalContent').innerHTML = `
+    <h2>👶 سياسات الأطفال — ${roomType.name}</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${hotel.name}</p>
+    <p style="font-size:.85rem;color:var(--gray);margin-bottom:16px;">
+      حدد أسعار الأطفال حسب العمر ونوع السرير. مثال: طفل 0-5 سنوات في السرير الأساسي = مجاني.
+    </p>
+    <button class="btn btn-gold" id="addChildPolicyBtn" style="margin-bottom:16px;">+ إضافة سياسة</button>
+    <div id="childPoliciesList"><p style="text-align:center;color:var(--gray);">جاري التحميل...</p></div>
+    <div class="modal-actions">
+      <button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button>
+    </div>`;
+  $('#modalBg').classList.add('show');
+
+  const loadPolicies = async () => {
+    try {
+      const list = await api('/api/admin/room-types/' + roomType.id + '/child-policies');
+      if (!list.length) {
+        $('#childPoliciesList').innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px;">لا توجد سياسات بعد. اضغط "+ إضافة سياسة".</p>';
+        return;
+      }
+      $('#childPoliciesList').innerHTML = `
+        <table style="width:100%;font-size:.88rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--shadow);border-collapse:collapse;">
+          <thead><tr>
+            <th style="padding:10px;">من عمر</th>
+            <th style="padding:10px;">إلى عمر</th>
+            <th style="padding:10px;">نوع السرير</th>
+            <th style="padding:10px;">نوع السعر</th>
+            <th style="padding:10px;">القيمة</th>
+            <th style="padding:10px;">إجراءات</th>
+          </tr></thead>
+          <tbody>${list.map(p => `<tr>
+            <td style="padding:10px;">${p.age_from}</td>
+            <td style="padding:10px;">${p.age_to}</td>
+            <td style="padding:10px;">${p.bed_type === 'base' ? '🛏️ أساسي' : p.bed_type === 'extra' ? '➕ إضافي' : '👶 أطفال'}</td>
+            <td style="padding:10px;">${p.price_type === 'free' ? '🎁 مجاني' : p.price_type === 'fixed' ? '💰 مبلغ ثابت' : '📊 نسبة'}</td>
+            <td style="padding:10px;">${p.price_type === 'free' ? '—' : p.price_type === 'fixed' ? p.price_value + ' RUB' : p.price_value + '%'}</td>
+            <td style="padding:10px;">
+              <button class="icon-btn del" data-del-policy="${p.id}">حذف</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+
+      $$('[data-del-policy]').forEach(b => b.onclick = async () => {
+        if (!confirm('حذف هذه السياسة؟')) return;
+        await api('/api/admin/child-policies/' + b.dataset.delPolicy, { method: 'DELETE' });
+        toast('تم الحذف', 'ok');
+        loadPolicies();
+      });
+    } catch (e) {
+      $('#childPoliciesList').innerHTML = '<p style="text-align:center;color:#dc2626;">خطأ في التحميل</p>';
+    }
+  };
+
+  $('#addChildPolicyBtn').onclick = () => openChildPolicyForm(roomType, loadPolicies);
+  loadPolicies();
+}
+
+function openChildPolicyForm(roomType, onDone) {
+  $('#modalContent').innerHTML = `
+    <h2>إضافة سياسة طفل</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${roomType.name}</p>
+    <form id="childPolicyForm" style="display:grid;gap:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>من عمر</label><input type="number" name="age_from" value="0" min="0" required></div>
+        <div class="field"><label>إلى عمر</label><input type="number" name="age_to" value="5" min="0" required></div>
+      </div>
+      <div class="field"><label>نوع السرير</label>
+        <select name="bed_type" style="padding:10px;border-radius:8px;border:1px solid #ddd;">
+          <option value="base">🛏️ السرير الأساسي</option>
+          <option value="extra">➕ سرير إضافي</option>
+          <option value="child">👶 سرير أطفال</option>
+        </select>
+      </div>
+      <div class="field"><label>نوع السعر</label>
+        <select name="price_type" style="padding:10px;border-radius:8px;border:1px solid #ddd;">
+          <option value="free">🎁 مجاني</option>
+          <option value="fixed">💰 مبلغ ثابت (RUB)</option>
+          <option value="percent">📊 نسبة من سعر البالغ (%)</option>
+        </select>
+      </div>
+      <div class="field"><label>القيمة</label><input type="number" name="price_value" value="0" min="0"></div>
+      <div class="modal-actions">
+        <button type="button" class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إلغاء</button>
+        <button type="submit" class="btn btn-gold">حفظ</button>
+      </div>
+    </form>`;
+
+  $('#childPolicyForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      age_from: +fd.get('age_from'),
+      age_to: +fd.get('age_to'),
+      bed_type: fd.get('bed_type'),
+      price_type: fd.get('price_type'),
+      price_value: +fd.get('price_value')
+    };
+    try {
+      await api('/api/admin/room-types/' + roomType.id + '/child-policies', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      toast('تم الحفظ', 'ok');
+      onDone();
+    } catch (err) { toast(err.message, 'err'); }
+  };
+}
+
+/* ===== MEAL PLANS MODAL ===== */
+async function openMealPlansModal(hotel) {
+  $('#modalContent').innerHTML = `
+    <h2>🍽️ خطط الوجبات — ${hotel.name}</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">
+      أضف خطط الوجبات (RO بدون إفطار، BB مع إفطار، HB نصف إقامة...). سعر الوجبة يُحسب لكل شخص لكل ليلة.
+    </p>
+    <button class="btn btn-gold" id="addMealPlanBtn" style="margin-bottom:16px;">+ إضافة خطة وجبات</button>
+    <div id="mealPlansList"><p style="text-align:center;color:var(--gray);">جاري التحميل...</p></div>
+    <div class="modal-actions">
+      <button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button>
+    </div>`;
+  $('#modalBg').classList.add('show');
+
+  const loadMeals = async () => {
+    try {
+      const list = await api('/api/admin/hotels/' + hotel.id + '/meal-plans');
+      if (!list.length) {
+        $('#mealPlansList').innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px;">لا توجد خطط وجبات بعد.</p>';
+        return;
+      }
+      $('#mealPlansList').innerHTML = `
+        <table style="width:100%;font-size:.88rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--shadow);border-collapse:collapse;">
+          <thead><tr>
+            <th style="padding:10px;">الاسم</th>
+            <th style="padding:10px;">الوصف</th>
+            <th style="padding:10px;">سعر الشخص (RUB)</th>
+            <th style="padding:10px;">لكل ليلة</th>
+            <th style="padding:10px;">الحالة</th>
+            <th style="padding:10px;">إجراءات</th>
+          </tr></thead>
+          <tbody>${list.map(m => `<tr>
+            <td style="padding:10px;"><strong>${m.name}</strong></td>
+            <td style="padding:10px;">${m.description || '—'}</td>
+            <td style="padding:10px;">${m.price_per_person.toLocaleString('ar-EG')}</td>
+            <td style="padding:10px;">${m.per_night ? '✅' : '❌'}</td>
+            <td style="padding:10px;">${m.active ? '✅' : '❌'}</td>
+            <td style="padding:10px;">
+              <button class="icon-btn" data-edit-meal="${m.id}" title="تعديل">✏️</button>
+              <button class="icon-btn" data-child-meals="${m.id}" style="background:#7c3aed;color:#fff;" title="وجبات الأطفال">👶</button>
+              <button class="icon-btn del" data-del-meal="${m.id}" title="حذف">🗑️</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+
+      $$('[data-edit-meal]').forEach(b => b.onclick = () => {
+        const row = list.find(x => x.id == b.dataset.editMeal);
+        openMealPlanForm(hotel, row, loadMeals);
+      });
+      $$('[data-child-meals]').forEach(b => b.onclick = () => {
+        const row = list.find(x => x.id == b.dataset.childMeals);
+        openChildMealPoliciesModal(hotel, row);
+      });
+      $$('[data-del-meal]').forEach(b => b.onclick = async () => {
+        if (!confirm('حذف هذه الخطة؟')) return;
+        await api('/api/admin/meal-plans/' + b.dataset.delMeal, { method: 'DELETE' });
+        toast('تم الحذف', 'ok');
+        loadMeals();
+      });
+    } catch (e) {
+      $('#mealPlansList').innerHTML = '<p style="text-align:center;color:#dc2626;">خطأ في التحميل</p>';
+    }
+  };
+
+  $('#addMealPlanBtn').onclick = () => openMealPlanForm(hotel, null, loadMeals);
+  loadMeals();
+}
+
+function openMealPlanForm(hotel, row, onDone) {
+  const isEdit = !!row;
+  const m = row || { name: 'BB', description: 'مع إفطار', price_per_person: 0, per_night: 1, active: 1 };
+
+  $('#modalContent').innerHTML = `
+    <h2>${isEdit ? 'تعديل' : 'إضافة'} خطة وجبات — ${hotel.name}</h2>
+    <form id="mealPlanForm" style="display:grid;gap:12px;">
+      <div class="field"><label>الاسم *</label>
+        <select name="name" required style="padding:10px;border-radius:8px;border:1px solid #ddd;">
+          <option value="RO" ${m.name === 'RO' ? 'selected' : ''}>RO — بدون وجبات</option>
+          <option value="BB" ${m.name === 'BB' ? 'selected' : ''}>BB — مع إفطار</option>
+          <option value="HB" ${m.name === 'HB' ? 'selected' : ''}>HB — نصف إقامة</option>
+          <option value="FB" ${m.name === 'FB' ? 'selected' : ''}>FB — إقامة كاملة</option>
+        </select>
+      </div>
+      <div class="field"><label>الوصف</label><input name="description" value="${m.description || ''}"></div>
+      <div class="field"><label>سعر الشخص (RUB)</label><input type="number" name="price_per_person" value="${m.price_per_person || 0}" min="0"></div>
+      <div class="field"><label><input type="checkbox" name="per_night" ${m.per_night ? 'checked' : ''}> السعر لكل ليلة</label></div>
+      <div class="field"><label><input type="checkbox" name="active" ${m.active ? 'checked' : ''}> مفعّل</label></div>
+      <div class="modal-actions">
+        <button type="button" class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إلغاء</button>
+        <button type="submit" class="btn btn-gold">حفظ</button>
+      </div>
+    </form>`;
+
+  $('#mealPlanForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      name: fd.get('name'),
+      description: fd.get('description'),
+      price_per_person: +fd.get('price_per_person'),
+      per_night: fd.get('per_night') ? 1 : 0,
+      active: fd.get('active') ? 1 : 0
+    };
+    try {
+      if (isEdit) {
+        await api('/api/admin/meal-plans/' + row.id, { method: 'PUT', body: JSON.stringify(data) });
+      } else {
+        await api('/api/admin/hotels/' + hotel.id + '/meal-plans', { method: 'POST', body: JSON.stringify(data) });
+      }
+      toast('تم الحفظ', 'ok');
+      onDone();
+    } catch (err) { toast(err.message, 'err'); }
+  };
+}
+
+
+/* ===== CHILD MEAL POLICIES MODAL ===== */
+async function openChildMealPoliciesModal(hotel, mealPlan) {
+  $('#modalContent').innerHTML = `
+    <h2>👶 وجبات الأطفال — ${mealPlan.name}</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${hotel.name}</p>
+    <p style="font-size:.85rem;color:var(--gray);margin-bottom:16px;">
+      حدد سعر وجبة الطفل حسب العمر. مثال: من 0-2 سنة = مجاني، من 3-17 سنة = 2000 RUB.
+    </p>
+    <button class="btn btn-gold" id="addChildMealBtn" style="margin-bottom:16px;">+ إضافة سياسة وجبة</button>
+    <div id="childMealPoliciesList"><p style="text-align:center;color:var(--gray);">جاري التحميل...</p></div>
+    <div class="modal-actions">
+      <button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button>
+    </div>`;
+  $('#modalBg').classList.add('show');
+
+  const loadPolicies = async () => {
+    try {
+      const list = await api('/api/admin/meal-plans/' + mealPlan.id + '/child-policies');
+      if (!list.length) {
+        $('#childMealPoliciesList').innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px;">لا توجد سياسات بعد. اضغط "+ إضافة سياسة وجبة".</p>';
+        return;
+      }
+      $('#childMealPoliciesList').innerHTML = `
+        <table style="width:100%;font-size:.88rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--shadow);border-collapse:collapse;">
+          <thead><tr>
+            <th style="padding:10px;">من عمر</th>
+            <th style="padding:10px;">إلى عمر</th>
+            <th style="padding:10px;">سعر الوجبة (RUB/ليلة)</th>
+            <th style="padding:10px;">إجراءات</th>
+          </tr></thead>
+          <tbody>${list.map(p => `<tr>
+            <td style="padding:10px;">${p.age_from}</td>
+            <td style="padding:10px;">${p.age_to}</td>
+            <td style="padding:10px;font-weight:700;color:var(--navy);">${p.price_per_person === 0 ? '🎁 مجاني' : p.price_per_person.toLocaleString('ar-EG')}</td>
+            <td style="padding:10px;">
+              <button class="icon-btn del" data-del-child-meal="${p.id}">حذف</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+
+      $$('[data-del-child-meal]').forEach(b => b.onclick = async () => {
+        if (!confirm('حذف هذه السياسة؟')) return;
+        await api('/api/admin/child-meal-policies/' + b.dataset.delChildMeal, { method: 'DELETE' });
+        toast('تم الحذف', 'ok');
+        loadPolicies();
+      });
+    } catch (e) {
+      $('#childMealPoliciesList').innerHTML = '<p style="text-align:center;color:#dc2626;">خطأ في التحميل</p>';
+    }
+  };
+
+  $('#addChildMealBtn').onclick = () => openChildMealPolicyForm(mealPlan, loadPolicies);
+  loadPolicies();
+}
+
+function openChildMealPolicyForm(mealPlan, onDone) {
+  $('#modalContent').innerHTML = `
+    <h2>إضافة سياسة وجبة طفل</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${mealPlan.name}</p>
+    <form id="childMealPolicyForm" style="display:grid;gap:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>من عمر</label><input type="number" name="age_from" value="0" min="0" required></div>
+        <div class="field"><label>إلى عمر</label><input type="number" name="age_to" value="2" min="0" required></div>
+      </div>
+      <div class="field"><label>سعر الوجبة (RUB لكل ليلة)</label>
+        <input type="number" name="price_per_person" value="0" min="0">
+        <small style="color:var(--gray);font-size:.8rem;">اكتب 0 للطفل المجاني</small>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إلغاء</button>
+        <button type="submit" class="btn btn-gold">حفظ</button>
+      </div>
+    </form>`;
+
+  $('#childMealPolicyForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      age_from: +fd.get('age_from'),
+      age_to: +fd.get('age_to'),
+      price_per_person: +fd.get('price_per_person')
+    };
+    try {
+      await api('/api/admin/meal-plans/' + mealPlan.id + '/child-policies', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      toast('تم الحفظ', 'ok');
+      onDone();
+    } catch (err) { toast(err.message, 'err'); }
+  };
+}
+
+
+/* ===== OCCUPANCY RULES MODAL ===== */
+async function openOccupancyRulesModal(hotel, roomType) {
+  $('#modalContent').innerHTML = `
+    <h2>📊 قواعد الإشغال — ${roomType.name}</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${hotel.name}</p>
+    <p style="font-size:.85rem;color:var(--gray);margin-bottom:16px;">
+      حدد القواعد المسموحة والممنوعة. مثال: "3 بالغين ممنوع"، "2 بالغين + 2 أطفال مسموح".
+    </p>
+    <button class="btn btn-gold" id="addOccupancyRuleBtn" style="margin-bottom:16px;">+ إضافة قاعدة</button>
+    <div id="occupancyRulesList"><p style="text-align:center;color:var(--gray);">جاري التحميل...</p></div>
+    <div class="modal-actions">
+      <button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button>
+    </div>`;
+  $('#modalBg').classList.add('show');
+
+  const loadRules = async () => {
+    try {
+      const list = await api('/api/admin/room-types/' + roomType.id + '/occupancy-rules');
+      if (!list.length) {
+        $('#occupancyRulesList').innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px;">لا توجد قواعد. اضغط "+ إضافة قاعدة".</p>';
+        return;
+      }
+      $('#occupancyRulesList').innerHTML = `
+        <table style="width:100%;font-size:.88rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--shadow);border-collapse:collapse;">
+          <thead><tr>
+            <th style="padding:10px;">البالغين</th>
+            <th style="padding:10px;">الأطفال</th>
+            <th style="padding:10px;">الإجراء</th>
+            <th style="padding:10px;">الوصف</th>
+            <th style="padding:10px;">إجراءات</th>
+          </tr></thead>
+          <tbody>${list.map(r => `<tr>
+            <td style="padding:10px;">${r.adults_min} → ${r.adults_max >= 99 ? '∞' : r.adults_max}</td>
+            <td style="padding:10px;">${r.children_min} → ${r.children_max >= 99 ? '∞' : r.children_max}</td>
+            <td style="padding:10px;">${r.action === 'allow' ? '✅ سماح' : '❌ منع'}</td>
+            <td style="padding:10px;font-size:.8rem;color:var(--gray);">${r.description || '—'}</td>
+            <td style="padding:10px;">
+              <button class="icon-btn del" data-del-occ="${r.id}">حذف</button>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+
+      $$('[data-del-occ]').forEach(b => b.onclick = async () => {
+        if (!confirm('حذف هذه القاعدة؟')) return;
+        await api('/api/admin/occupancy-rules/' + b.dataset.delOcc, { method: 'DELETE' });
+        toast('تم الحذف', 'ok');
+        loadRules();
+      });
+    } catch (e) {
+      $('#occupancyRulesList').innerHTML = '<p style="text-align:center;color:#dc2626;">خطأ في التحميل</p>';
+    }
+  };
+
+  $('#addOccupancyRuleBtn').onclick = () => openOccupancyRuleForm(roomType, loadRules);
+  loadRules();
+}
+
+function openOccupancyRuleForm(roomType, onDone) {
+  $('#modalContent').innerHTML = `
+    <h2>إضافة قاعدة إشغال</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${roomType.name}</p>
+    <form id="occupancyRuleForm" style="display:grid;gap:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>من بالغ</label><input type="number" name="adults_min" value="0" min="0" required></div>
+        <div class="field"><label>إلى بالغ</label><input type="number" name="adults_max" value="99" min="0" required></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field"><label>من أطفال</label><input type="number" name="children_min" value="0" min="0" required></div>
+        <div class="field"><label>إلى أطفال</label><input type="number" name="children_max" value="99" min="0" required></div>
+      </div>
+      <div class="field"><label>الإجراء</label>
+        <select name="action" style="padding:10px;border-radius:8px;border:1px solid #ddd;">
+          <option value="deny">❌ منع (غير مسموح)</option>
+          <option value="allow">✅ سماح (مسموح)</option>
+        </select>
+      </div>
+      <div class="field"><label>الوصف (اختياري)</label><input type="text" name="description" placeholder="مثال: 3 بالغين ممنوع"></div>
+      <div class="field"><label>الترتيب</label><input type="number" name="sort_order" value="0" min="0"></div>
+      <div class="modal-actions">
+        <button type="button" class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إلغاء</button>
+        <button type="submit" class="btn btn-gold">حفظ</button>
+      </div>
+    </form>`;
+
+  $('#occupancyRuleForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      adults_min: +fd.get('adults_min'),
+      adults_max: +fd.get('adults_max'),
+      children_min: +fd.get('children_min'),
+      children_max: +fd.get('children_max'),
+      action: fd.get('action'),
+      description: fd.get('description'),
+      sort_order: +fd.get('sort_order')
+    };
+    try {
+      await api('/api/admin/room-types/' + roomType.id + '/occupancy-rules', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      toast('تم الحفظ', 'ok');
+      onDone();
+    } catch (err) { toast(err.message, 'err'); }
+  };
 }
 
 function openModal(entity, row, schema) {
@@ -940,6 +1652,77 @@ window.removeTplDay = function(dayId) {
   tplDays = tplDays.filter(d => d.id !== dayId);
   renderTplDays();
 };
+
+/* ===== VISITS (الزوار) ===== */
+async function renderVisits() {
+  try {
+    const stats = await api('/api/admin/visits');
+    $('#viewContent').innerHTML = `
+      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:24px;">
+        <div class="stat" style="border-right-color:var(--gold);">
+          <div class="label">📅 هذا الأسبوع</div>
+          <div class="value">${stats.week.toLocaleString('ar-EG')}</div>
+          <small style="color:var(--gray);font-size:.75rem;">زيارة</small>
+        </div>
+        <div class="stat" style="border-right-color:var(--gold);">
+          <div class="label">📆 هذا الشهر</div>
+          <div class="value">${stats.month.toLocaleString('ar-EG')}</div>
+          <small style="color:var(--gray);font-size:.75rem;">زيارة</small>
+        </div>
+        <div class="stat" style="border-right-color:var(--primary,#0e7490);">
+          <div class="label">📊 الإجمالي الكلي</div>
+          <div class="value">${stats.total.toLocaleString('ar-EG')}</div>
+          <small style="color:var(--gray);font-size:.75rem;">زيارة</small>
+        </div>
+      </div>
+      
+      <div style="background:#fff;padding:20px;border-radius:12px;box-shadow:var(--shadow);margin-bottom:20px;">
+        <h3 style="margin-bottom:12px;color:var(--navy);font-size:1rem;">ℹ️ معلومات</h3>
+        <p style="color:var(--gray);font-size:.85rem;line-height:1.7;">
+          <strong>الأسبوع:</strong> من ${stats.week_start || '—'} حتى الآن<br>
+          <strong>الشهر:</strong> من ${stats.month_start || '—'} حتى الآن<br>
+          <strong>ملاحظة:</strong> تُحسب الزيارات فقط للصفحة الرئيسية (بدون لوحة التحكم أو API).
+        </p>
+      </div>
+      
+      <div style="text-align:center;padding:20px;">
+        <button class="btn" id="clearVisitsBtn" style="background:#dc2626;color:#fff;padding:12px 24px;border-radius:50px;font-weight:700;border:none;cursor:pointer;font-family:inherit;font-size:.95rem;">
+          🗑️ حذف كل الزيارات
+        </button>
+        <p style="color:var(--gray);font-size:.8rem;margin-top:10px;">
+          استخدم هذا الزر لتنظيف قاعدة البيانات (لا يمكن التراجع).
+        </p>
+      </div>
+    `;
+
+    const clearBtn = document.getElementById('clearVisitsBtn');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', async () => {
+        if (!stats.total) {
+          toast('لا توجد زيارات للحذف', 'err');
+          return;
+        }
+        if (!confirm('⚠️ حذف كل الزيارات (' + stats.total.toLocaleString('ar-EG') + ')؟\n\nلا يمكن التراجع!')) return;
+        
+        clearBtn.disabled = true;
+        clearBtn.innerHTML = '⏳ جارٍ الحذف...';
+        
+        try {
+          const r = await api('/api/admin/visits/all', { method: 'DELETE' });
+          toast('✅ تم حذف ' + r.deleted + ' زيارة', 'ok');
+          renderVisits();
+        } catch (e) {
+          toast('خطأ: ' + (e.error || e.message || 'فشل الحذف'), 'err');
+          clearBtn.disabled = false;
+          clearBtn.innerHTML = '🗑️ حذف كل الزيارات';
+        }
+      });
+    }
+  } catch (e) {
+    console.error(e);
+    $('#viewContent').innerHTML = '<p style="text-align:center;color:#dc2626;padding:40px;">خطأ في تحميل الإحصائيات</p>';
+  }
+}
 
 async function renderSettings() {
   const s = await api('/api/admin/settings');

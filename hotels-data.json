@@ -1,0 +1,154 @@
+{
+  "hotel": {
+    "name": "فندق تجريبي للاختبار",
+    "city": "موسكو",
+    "stars": 5,
+    "price_rub": 15000,
+    "description": "فندق تجريبي لاختبار محرك الحساب",
+    "image": "",
+    "address": "موسكو، شارع الاختبار 1",
+    "active": 1
+  },
+  "meal_plans": [
+    {
+      "name": "RO",
+      "description": "بدون وجبات",
+      "price_per_person": 0,
+      "per_night": 1,
+      "active": 1,
+      "sort_order": 0
+    },
+    {
+      "name": "BB",
+      "description": "مع إفطار",
+      "price_per_person": 1000,
+      "per_night": 1,
+      "active": 1,
+      "sort_order": 1
+    },
+    {
+      "name": "HB",
+      "description": "نصف إقامة (إفطار + عشاء)",
+      "price_per_person": 1800,
+      "per_night": 1,
+      "active": 1,
+      "sort_order": 2
+    }
+  ],
+  "room_types": [
+    {
+      "name": "سوبيريور مزدوجة",
+      "description": "غرفة مزدوجة مع إطلالة على المدينة",
+      "image": "",
+      "max_adults": 2,
+      "max_children": 2,
+      "max_total": 3,
+      "base_bed_type": "double",
+      "has_extra_bed": 1,
+      "max_extra_beds": 1,
+      "extra_bed_adult_price": 4000,
+      "extra_bed_child_price": 3250,
+      "active": 1,
+      "sort_order": 1,
+      "prices": [
+        {
+          "season_name": "موسم منخفض",
+          "date_from": "2026-11-01",
+          "date_to": "2026-12-20",
+          "price_single": 8500,
+          "price_double": 10500,
+          "price_triple": 13500,
+          "price_quad": null
+        },
+        {
+          "season_name": "رأس السنة",
+          "date_from": "2026-12-21",
+          "date_to": "2027-01-10",
+          "price_single": 14500,
+          "price_double": 16500,
+          "price_triple": 19500,
+          "price_quad": null
+        }
+      ],
+      "child_policies": [
+        {
+          "age_from": 0,
+          "age_to": 5,
+          "bed_type": "base",
+          "price_type": "free",
+          "price_value": 0
+        },
+        {
+          "age_from": 0,
+          "age_to": 5,
+          "bed_type": "extra",
+          "price_type": "free",
+          "price_value": 0
+        },
+        {
+          "age_from": 6,
+          "age_to": 11,
+          "bed_type": "base",
+          "price_type": "fixed",
+          "price_value": 750
+        },
+        {
+          "age_from": 6,
+          "age_to": 11,
+          "bed_type": "extra",
+          "price_type": "fixed",
+          "price_value": 3250
+        },
+        {
+          "age_from": 12,
+          "age_to": 99,
+          "bed_type": "extra",
+          "price_type": "fixed",
+          "price_value": 4000
+        }
+      ]
+    },
+    {
+      "name": "جناح عائلي",
+      "description": "جناح واسع للعائلات",
+      "image": "",
+      "max_adults": 2,
+      "max_children": 3,
+      "max_total": 5,
+      "base_bed_type": "double",
+      "has_extra_bed": 1,
+      "max_extra_beds": 2,
+      "extra_bed_adult_price": 4500,
+      "extra_bed_child_price": 3500,
+      "active": 1,
+      "sort_order": 2,
+      "prices": [
+        {
+          "season_name": "موسم منخفض",
+          "date_from": "2026-11-01",
+          "date_to": "2026-12-20",
+          "price_single": null,
+          "price_double": 18500,
+          "price_triple": 21500,
+          "price_quad": 24500
+        }
+      ],
+      "child_policies": [
+        {
+          "age_from": 0,
+          "age_to": 5,
+          "bed_type": "base",
+          "price_type": "free",
+          "price_value": 0
+        },
+        {
+          "age_from": 6,
+          "age_to": 11,
+          "bed_type": "base",
+          "price_type": "percent",
+          "price_value": 50
+        }
+      ]
+    }
+  ]
+}

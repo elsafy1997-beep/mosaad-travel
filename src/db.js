@@ -32,8 +32,9 @@ export function initDb() {
       name TEXT NOT NULL, city TEXT NOT NULL,
       stars INTEGER DEFAULT 3, room_type TEXT,
       breakfast INTEGER DEFAULT 0, price_rub INTEGER DEFAULT 0,
-      description TEXT, address TEXT, image TEXT,
+      description TEXT, address TEXT, image TEXT, website TEXT DEFAULT '',
       active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS hotel_prices (
@@ -48,6 +49,127 @@ export function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_hotel_prices_hotel ON hotel_prices(hotel_id);
     CREATE INDEX IF NOT EXISTS idx_hotel_prices_dates ON hotel_prices(date_from, date_to);
+
+    CREATE TABLE IF NOT EXISTS hotel_room_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hotel_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      image TEXT,
+      max_adults INTEGER DEFAULT 2,
+      max_children INTEGER DEFAULT 0,
+      max_total INTEGER DEFAULT 2,
+      meals_enabled INTEGER DEFAULT 1,
+      base_bed_type TEXT DEFAULT 'double',
+      has_extra_bed INTEGER DEFAULT 0,
+      max_extra_beds INTEGER DEFAULT 0,
+      extra_bed_adult_price INTEGER DEFAULT 0,
+      extra_bed_child_price INTEGER DEFAULT 0,
+      active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_room_types_hotel ON hotel_room_types(hotel_id);
+    CREATE TABLE IF NOT EXISTS hotel_meal_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hotel_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      price_per_person INTEGER DEFAULT 0,
+      per_night INTEGER DEFAULT 1,
+      active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_meal_plans_hotel ON hotel_meal_plans(hotel_id);
+    CREATE TABLE IF NOT EXISTS hotel_child_meal_policies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      meal_plan_id INTEGER NOT NULL,
+      age_from INTEGER NOT NULL,
+      age_to INTEGER NOT NULL,
+      price_per_person INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (meal_plan_id) REFERENCES hotel_meal_plans(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_child_meal_plan ON hotel_child_meal_policies(meal_plan_id);
+
+    CREATE TABLE IF NOT EXISTS hotel_bookings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_ref TEXT UNIQUE NOT NULL,
+      hotel_id INTEGER NOT NULL,
+      room_type_id INTEGER NOT NULL,
+      meal_plan_id INTEGER,
+      date_from TEXT NOT NULL,
+      date_to TEXT NOT NULL,
+      nights INTEGER NOT NULL,
+      rooms_count INTEGER DEFAULT 1,
+      adults INTEGER NOT NULL,
+      children_ages TEXT DEFAULT '[]',
+      customer_name TEXT,
+      customer_email TEXT,
+      customer_phone TEXT,
+      customer_notes TEXT,
+      total_price INTEGER NOT NULL,
+      currency TEXT DEFAULT 'RUB',
+      breakdown_json TEXT DEFAULT '[]',
+      status TEXT DEFAULT 'pending',
+      source TEXT DEFAULT 'trip-planner',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE,
+      FOREIGN KEY (room_type_id) REFERENCES hotel_room_types(id) ON DELETE CASCADE,
+      FOREIGN KEY (meal_plan_id) REFERENCES hotel_meal_plans(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_hotel_bookings_hotel ON hotel_bookings(hotel_id);
+    CREATE INDEX IF NOT EXISTS idx_hotel_bookings_ref ON hotel_bookings(booking_ref);
+    CREATE INDEX IF NOT EXISTS idx_hotel_bookings_status ON hotel_bookings(status);
+
+
+
+    CREATE TABLE IF NOT EXISTS hotel_room_prices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_type_id INTEGER NOT NULL,
+      season_name TEXT DEFAULT '',
+      date_from TEXT NOT NULL,
+      date_to TEXT NOT NULL,
+      price_single INTEGER,
+      price_double INTEGER,
+      price_triple INTEGER,
+      price_quad INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (room_type_id) REFERENCES hotel_room_types(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_room_prices_type ON hotel_room_prices(room_type_id);
+    CREATE INDEX IF NOT EXISTS idx_room_prices_dates ON hotel_room_prices(date_from, date_to);
+    CREATE TABLE IF NOT EXISTS hotel_child_policies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_type_id INTEGER NOT NULL,
+      age_from INTEGER NOT NULL,
+      age_to INTEGER NOT NULL,
+      bed_type TEXT DEFAULT 'base',
+      price_type TEXT DEFAULT 'free',
+      price_value INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (room_type_id) REFERENCES hotel_room_types(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_child_policies_room ON hotel_child_policies(room_type_id);
+    CREATE TABLE IF NOT EXISTS hotel_room_occupancy_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_type_id INTEGER NOT NULL,
+      adults_min INTEGER DEFAULT 0,
+      adults_max INTEGER DEFAULT 99,
+      children_min INTEGER DEFAULT 0,
+      children_max INTEGER DEFAULT 99,
+      action TEXT DEFAULT 'deny',
+      description TEXT DEFAULT '',
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (room_type_id) REFERENCES hotel_room_types(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_occupancy_rules_room ON hotel_room_occupancy_rules(room_type_id);
+
+
 
     CREATE TABLE IF NOT EXISTS restaurants (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -203,6 +325,13 @@ export function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_extra_services_active ON extra_services(active);
 
+    CREATE TABLE IF NOT EXISTS visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      page TEXT DEFAULT '/',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_visits_created ON visits(created_at);
+
     CREATE TABLE IF NOT EXISTS services (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL, description TEXT,
@@ -331,6 +460,31 @@ export function initDb() {
     }
   } catch (e) {
     console.log('Migration warning (tours):', e.message);
+  }
+  
+  // Migration for hotels website
+  try {
+    const hcols = db.prepare("PRAGMA table_info(hotels)").all();
+    const hasWebsite = hcols.some(c => c.name === 'website');
+    if (!hasWebsite) {
+      db.prepare("ALTER TABLE hotels ADD COLUMN website TEXT DEFAULT ''").run();
+      console.log('✅ Migration: website added to hotels');
+    }
+  } catch (e) {
+    console.log('Migration warning (hotels):', e.message);
+  }
+  
+  // Auto-cleanup: remove visits older than 12 months
+  try {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 12);
+    const cutoffStr = cutoff.toISOString().replace('T', ' ').split('.')[0];
+    const result = db.prepare('DELETE FROM visits WHERE created_at < ?').run(cutoffStr);
+    if (result.changes > 0) {
+      console.log('🧹 Cleaned up', result.changes, 'old visits');
+    }
+  } catch (e) {
+    console.log('Cleanup warning:', e.message);
   }
 }
 

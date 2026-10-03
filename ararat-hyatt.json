@@ -1,0 +1,240 @@
+{
+  "hotel": {
+    "name": "Ararat Park Hyatt Moscow",
+    "city": "موسكو",
+    "stars": 5,
+    "price_rub": 24500,
+    "description": "فندق فاخر في قلب موسكو، على بعد دقائق من الكرملين والساحة الحمراء.",
+    "image": "",
+    "address": "موسكو، شارع Negotinnaya 4",
+    "active": 1
+  },
+  "meal_plans": [
+    {
+      "name": "RO",
+      "description": "بدون وجبات",
+      "price_per_person": 0,
+      "per_night": 1,
+      "active": 1,
+      "sort_order": 0
+    },
+    {
+      "name": "BB",
+      "description": "مع إفطار",
+      "price_per_person": 2500,
+      "per_night": 1,
+      "active": 1,
+      "sort_order": 1
+    }
+  ],
+  "room_types": [
+    {
+      "name": "بارك كينغ / توين",
+      "description": "غرفة أنيقة مع سرير كينغ أو سريرين توين",
+      "image": "",
+      "max_adults": 2,
+      "max_children": 1,
+      "max_total": 3,
+      "base_bed_type": "double",
+      "has_extra_bed": 1,
+      "max_extra_beds": 1,
+      "extra_bed_adult_price": 4000,
+      "extra_bed_child_price": 2000,
+      "active": 1,
+      "sort_order": 1,
+      "prices": [
+        {
+          "season_name": "عرض الخريف",
+          "date_from": "2026-09-08",
+          "date_to": "2026-10-23",
+          "price_single": 22500,
+          "price_double": 24500,
+          "price_triple": 28500,
+          "price_quad": null
+        },
+        {
+          "season_name": "العرض الموسمي",
+          "date_from": "2026-10-24",
+          "date_to": "2026-11-25",
+          "price_single": 26500,
+          "price_double": 28500,
+          "price_triple": 32500,
+          "price_quad": null
+        },
+        {
+          "season_name": "عرض الشتاء",
+          "date_from": "2026-11-26",
+          "date_to": "2026-12-30",
+          "price_single": 32500,
+          "price_double": 36500,
+          "price_triple": 40500,
+          "price_quad": null
+        }
+      ],
+      "child_policies": [
+        { "age_from": 0, "age_to": 5, "bed_type": "base", "price_type": "free", "price_value": 0 },
+        { "age_from": 0, "age_to": 5, "bed_type": "extra", "price_type": "free", "price_value": 0 },
+        { "age_from": 6, "age_to": 11, "bed_type": "base", "price_type": "fixed", "price_value": 750 },
+        { "age_from": 6, "age_to": 11, "bed_type": "extra", "price_type": "fixed", "price_value": 2000 },
+        { "age_from": 12, "age_to": 99, "bed_type": "base", "price_type": "fixed", "price_value": 1500 },
+        { "age_from": 12, "age_to": 99, "bed_type": "extra", "price_type": "fixed", "price_value": 4000 }
+      ]
+    },
+    {
+      "name": "بارك بإطلالة على المدينة",
+      "description": "غرفة مع إطلالة رائعة على مدينة موسكو",
+      "image": "",
+      "max_adults": 2,
+      "max_children": 1,
+      "max_total": 3,
+      "base_bed_type": "double",
+      "has_extra_bed": 1,
+      "max_extra_beds": 1,
+      "extra_bed_adult_price": 4000,
+      "extra_bed_child_price": 2000,
+      "active": 1,
+      "sort_order": 2,
+      "prices": [
+        {
+          "season_name": "عرض الخريف",
+          "date_from": "2026-09-08",
+          "date_to": "2026-10-23",
+          "price_single": 26500,
+          "price_double": 28500,
+          "price_triple": 32500,
+          "price_quad": null
+        },
+        {
+          "season_name": "العرض الموسمي",
+          "date_from": "2026-10-24",
+          "date_to": "2026-11-25",
+          "price_single": 28500,
+          "price_double": 32500,
+          "price_triple": 36500,
+          "price_quad": null
+        },
+        {
+          "season_name": "عرض الشتاء",
+          "date_from": "2026-11-26",
+          "date_to": "2026-12-30",
+          "price_single": 36500,
+          "price_double": 40500,
+          "price_triple": 44500,
+          "price_quad": null
+        }
+      ],
+      "child_policies": [
+        { "age_from": 0, "age_to": 5, "bed_type": "base", "price_type": "free", "price_value": 0 },
+        { "age_from": 0, "age_to": 5, "bed_type": "extra", "price_type": "free", "price_value": 0 },
+        { "age_from": 6, "age_to": 11, "bed_type": "base", "price_type": "fixed", "price_value": 750 },
+        { "age_from": 6, "age_to": 11, "bed_type": "extra", "price_type": "fixed", "price_value": 2000 },
+        { "age_from": 12, "age_to": 99, "bed_type": "base", "price_type": "fixed", "price_value": 1500 },
+        { "age_from": 12, "age_to": 99, "bed_type": "extra", "price_type": "fixed", "price_value": 4000 }
+      ]
+    },
+    {
+      "name": "بارك ديلوكس كينغ / توين",
+      "description": "غرفة ديلوكس فسيحة مع إطلالة",
+      "image": "",
+      "max_adults": 2,
+      "max_children": 2,
+      "max_total": 3,
+      "base_bed_type": "double",
+      "has_extra_bed": 1,
+      "max_extra_beds": 1,
+      "extra_bed_adult_price": 4000,
+      "extra_bed_child_price": 2000,
+      "active": 1,
+      "sort_order": 3,
+      "prices": [
+        {
+          "season_name": "عرض الخريف",
+          "date_from": "2026-09-08",
+          "date_to": "2026-10-23",
+          "price_single": 28500,
+          "price_double": 30500,
+          "price_triple": 34500,
+          "price_quad": null
+        },
+        {
+          "season_name": "العرض الموسمي",
+          "date_from": "2026-10-24",
+          "date_to": "2026-11-25",
+          "price_single": 30500,
+          "price_double": 34500,
+          "price_triple": 38500,
+          "price_quad": null
+        },
+        {
+          "season_name": "عرض الشتاء",
+          "date_from": "2026-11-26",
+          "date_to": "2026-12-30",
+          "price_single": 38500,
+          "price_double": 42500,
+          "price_triple": 46500,
+          "price_quad": null
+        }
+      ],
+      "child_policies": [
+        { "age_from": 0, "age_to": 5, "bed_type": "base", "price_type": "free", "price_value": 0 },
+        { "age_from": 0, "age_to": 5, "bed_type": "extra", "price_type": "free", "price_value": 0 },
+        { "age_from": 6, "age_to": 11, "bed_type": "base", "price_type": "fixed", "price_value": 750 },
+        { "age_from": 6, "age_to": 11, "bed_type": "extra", "price_type": "fixed", "price_value": 2000 },
+        { "age_from": 12, "age_to": 99, "bed_type": "base", "price_type": "fixed", "price_value": 1500 },
+        { "age_from": 12, "age_to": 99, "bed_type": "extra", "price_type": "fixed", "price_value": 4000 }
+      ]
+    },
+    {
+      "name": "جناح بارك كينغ / توين",
+      "description": "جناح فاخر مع غرفة معيشة منفصلة",
+      "image": "",
+      "max_adults": 3,
+      "max_children": 2,
+      "max_total": 4,
+      "base_bed_type": "double",
+      "has_extra_bed": 1,
+      "max_extra_beds": 1,
+      "extra_bed_adult_price": 6500,
+      "extra_bed_child_price": 4500,
+      "active": 1,
+      "sort_order": 4,
+      "prices": [
+        {
+          "season_name": "عرض الخريف",
+          "date_from": "2026-09-08",
+          "date_to": "2026-10-23",
+          "price_single": null,
+          "price_double": 49500,
+          "price_triple": 53500,
+          "price_quad": 57500
+        },
+        {
+          "season_name": "العرض الموسمي",
+          "date_from": "2026-10-24",
+          "date_to": "2026-11-25",
+          "price_single": null,
+          "price_double": 53500,
+          "price_triple": 57500,
+          "price_quad": 61500
+        },
+        {
+          "season_name": "عرض الشتاء",
+          "date_from": "2026-11-26",
+          "date_to": "2026-12-30",
+          "price_single": null,
+          "price_double": 57500,
+          "price_triple": 61500,
+          "price_quad": 65500
+        }
+      ],
+      "child_policies": [
+        { "age_from": 0, "age_to": 5, "bed_type": "base", "price_type": "free", "price_value": 0 },
+        { "age_from": 0, "age_to": 5, "bed_type": "extra", "price_type": "free", "price_value": 0 },
+        { "age_from": 6, "age_to": 11, "bed_type": "base", "price_type": "fixed", "price_value": 750 },
+        { "age_from": 6, "age_to": 11, "bed_type": "extra", "price_type": "fixed", "price_value": 3250 },
+        { "age_from": 12, "age_to": 99, "bed_type": "base", "price_type": "fixed", "price_value": 1500 },
+        { "age_from": 12, "age_to": 99, "bed_type": "extra", "price_type": "fixed", "price_value": 6500 }
+      ]
+    }
+  ]
+}

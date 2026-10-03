@@ -1,7 +1,30 @@
+# Dependencies
 node_modules/
+
+# Database (يُدار عبر Railway Volume)
 data/
+
+# Environment variables (حساسة)
 .env
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS files
 .DS_Store
-package-lock.json
+
+# Uploads
 public/uploads/
+
+# Backup files (نسخ احتياطية)
+*.bak_*
+*.backup_*
+*.bak
+
+# Lock files (يُفضّل عدم رفعها)
+package-lock.json
+
+# Editor files
+.vscode/
+.idea/
