@@ -6,7 +6,10 @@ import path from 'path';
 import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.resolve(process.env.DATABASE_URL || './data/mosaad.db');
+// ✅ استخدام مسار Volume الدائم
+const dbPath = process.env.DATABASE_URL 
+  ? path.resolve(process.env.DATABASE_URL)
+  : '/app/data/mosaad.db';
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 export const db = new Database(dbPath);
