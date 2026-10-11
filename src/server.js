@@ -45,6 +45,11 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, '../public')));
 
+// ✅ تقديم الصور من Volume على Railway
+if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+  app.use('/uploads', express.static(path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'uploads')));
+}
+
 const ok = (res, data) => res.json(data);
 const err = (res, code, msg) => res.status(code).json({ error: msg });
 
@@ -241,7 +246,10 @@ app.get('/api/auth/me', (req, res) => {
 app.use('/api/admin', requireAuth);
 
 /* ===== FILE UPLOAD ===== */
-const uploadsDir = path.join(__dirname, '../public/uploads');
+// ✅ تحديد مسار الرفع: Volume على Railway، أو public/uploads محلياً
+const uploadsDir = process.env.RAILWAY_VOLUME_MOUNT_PATH
+  ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'uploads')
+  : path.join(__dirname, '../public/uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsDir),
