@@ -1,3 +1,15 @@
+function isMobile() {
+  return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+}
+
+function openWhatsApp(url) {
+  if (isMobile()) {
+    window.location.href = url;
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const fmt = n => Number(n || 0).toLocaleString('ar-EG') + ' ₽';
@@ -44,7 +56,7 @@ async function api(path, opts) {
   return r.ok ? r.json() : Promise.reject(await r.json().catch(() => ({ error: 'خطأ' })));
 }
 function waLink(text = '') {
-  const num = SETTINGS.whatsapp_number || '';
+  const num = (SETTINGS.whatsapp_number || '').replace(/\D/g, '');
   return 'https://wa.me/' + num + (text ? '?text=' + encodeURIComponent(text) : '');
 }
 window.addEventListener('scroll', () => $('#hdr').classList.toggle('solid', window.scrollY > 50));
@@ -230,7 +242,7 @@ window.requestService = async (id) => {
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
-      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+      openWhatsApp(waLink(msg));
     }, 500);
   } catch (e) { toast('خطأ', 'err'); }
 };
@@ -265,7 +277,7 @@ window.requestRestaurant = async (id) => {
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
-      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+      openWhatsApp(waLink(msg));
     }, 500);
   } catch (e) { toast('خطأ', 'err'); }
 };
@@ -1626,7 +1638,7 @@ $('#pSubmit').onclick = async () => {
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
-      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(message), '_blank');
+      openWhatsApp(waLink(message));
     }, 500);
   } catch (e) { toast(e.error || 'حدث خطأ', 'err'); }
 };
@@ -1673,7 +1685,7 @@ window.requestHotel = async (id) => {
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
-      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+      openWhatsApp(waLink(msg));
     }, 500);
   } catch (e) { toast('خطأ', 'err'); }
 };
@@ -2142,7 +2154,7 @@ window.submitTripPlan = async function() {
     const message = lines.join('\n');
 
     setTimeout(() => {
-      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(message), '_blank');
+      openWhatsApp(waLink(message));
     }, 700);
   } catch (e) {
     toast(e.error || 'حدث خطأ', 'err');
@@ -2215,7 +2227,7 @@ window.requestMedical = async function(id) {
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
-      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+      openWhatsApp(waLink(msg));
     }, 500);
   } catch (e) {
     toast('خطأ', 'err');
@@ -2282,7 +2294,7 @@ window.requestScholarship = async function(id) {
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
-      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+      openWhatsApp(waLink(msg));
     }, 500);
   } catch (e) {
     toast('خطأ', 'err');
@@ -2321,7 +2333,7 @@ window.requestUniversity = async function(id) {
 
     toast('جارٍ فتح WhatsApp...', 'ok');
     setTimeout(() => {
-      window.open('https://wa.me/' + SETTINGS.whatsapp_number + '?text=' + encodeURIComponent(msg), '_blank');
+      openWhatsApp(waLink(msg));
     }, 500);
   } catch (e) {
     toast('خطأ', 'err');
