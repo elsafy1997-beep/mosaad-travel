@@ -311,11 +311,18 @@ export function calculateBooking(params) {
   // 7) حساب سياسات الأطفال
   // ==========================================
   let childrenCost = 0;
-  const childPolicies = db.prepare(`
-    SELECT * FROM hotel_child_policies
-    WHERE room_type_id = ?
-    ORDER BY bed_type, age_from
-  `).all(room_type_id);
+  
+  // ✅ استخدام السياسة الموحّدة إذا كانت مفعّلة
+  let childPolicies = [];
+  if (roomType.child_policy_enabled === 1 || roomType.child_policy_enabled === true) {
+    // قراءة من الجدول الجديد (السياسة الموحّدة لكل فندق)
+    childPolicies = db.prepare(`
+      SELECT * FROM hotel_policies
+      WHERE hotel_id = ?
+      ORDER BY bed_type, age_from
+    `).all(hotel_id);
+  }
+  // إذا كان child_policy_enabled = 0 → لا سياسات (childrenCost = 0)
 
   // تحديد عدد الأطفال في السرير الأساسي والأسرّة الإضافية
   const baseBedSlots = Math.max(0, roomType.max_total - adults);
@@ -380,13 +387,11 @@ export function calculateBooking(params) {
     }
 
     if (!policy) {
-      // لا توجد سياسة → احسبه كبالغ
-      const adultCost = basePricePerNight * nights;
-      childrenCost += adultCost;
+      // ✅ لا توجد سياسة → الطفل مجاني
       breakdown.push({
-        label: `طفل ${age} سنة (لا توجد سياسة → سعر بالغ)`,
-        detail: `${basePricePerNight.toLocaleString('ar-EG')} RUB × ${nights} ليال`,
-        amount: adultCost
+        label: `طفل ${age} سنة (لا توجد سياسة — مجاني)`,
+        detail: '',
+        amount: 0
       });
       return;
     }

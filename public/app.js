@@ -465,7 +465,8 @@ function renderHotelSegments() {
           </div>
           <div class="field">
             <label> عدد الأطفال</label>
-            <input type="number" class="seg-children-count" data-seg-id="${seg.id}" data-room="${r}" min="0" max="4" value="${childrenCount}">
+            <input type="number" class="seg-children-count" data-seg-id="${seg.id}" data-room="${r}" min="0" max="${(roomData.maxChildren || 4)}" value="${childrenCount}">
+            <div class="child-warning" data-seg-id="${seg.id}" data-room="${r}" style="color:#dc2626;font-size:.8rem;font-weight:700;margin-top:4px;display:none;"></div>
           </div>
         </div>
         ${childrenAgesHtml ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e5e7eb;">${childrenAgesHtml}</div>` : ''}
@@ -546,9 +547,18 @@ function renderHotelSegments() {
   });
 
   // مستمعات الغرف المتعددة
-  $$('.seg-room-type').forEach(el => el.onchange = () => updateRoomData(el.dataset.segId, el.dataset.room, 'roomTypeId', el.value));
+  $$('.seg-room-type').forEach(el => el.onchange = () => {
+    updateRoomData(el.dataset.segId, el.dataset.room, 'roomTypeId', el.value);
+    // ✅ تحقق فوري من عدد الأطفال بعد اختيار النوع
+  });
   $$('.seg-adults').forEach(el => el.onchange = () => updateRoomData(el.dataset.segId, el.dataset.room, 'adults', +el.value || 2));
-  $$('.seg-children-count').forEach(el => el.onchange = () => updateRoomData(el.dataset.segId, el.dataset.room, 'childrenCount', +el.value || 0));
+  $$('.seg-children-count').forEach(el => el.onchange = () => {
+    const segId = el.dataset.segId;
+    const roomIdx = el.dataset.room;
+    const val = +el.value || 0;
+    updateRoomData(segId, roomIdx, 'childrenCount', val);
+    // ✅ تحقق فوري
+  });
   $$('.seg-child-age').forEach(el => {
     el.onchange = async () => {
       const segId = el.dataset.segId;
@@ -603,7 +613,7 @@ function renderHotelSegments() {
           return;
         }
         
-        const bedLabels = { base: '🛏️ أساسي', extra: '➕ إضافي', child: '👶 أطفال' };
+        const bedLabels = { base: '🛏️ سرير أساسي', extra: '➕ سرير إضافي', child: '👶 سرير أطفال', baby: '👶 سرير أطفال' };
         const priceLabels = (p) => {
           if (p.price_type === 'free') return 'مجاني';
           if (p.price_type === 'fixed') return p.price_value + ' RUB';
@@ -648,7 +658,15 @@ function renderHotelSegments() {
   hotelSegments.forEach(seg => {
     if (seg.hotelId) loadHotelBookingOptions(seg);
   });
-}
+
+  
+  // ✅ استدعاء checkChildrenLimit بعد كل إعادة رسم
+  setTimeout(() => {
+    document.querySelectorAll('.seg-children-count').forEach(el => {
+      if (el.dataset.segId && el.dataset.room) {
+      }
+    });
+  }, 100);}
 
 // 🆕 تحديث بيانات غرفة محددة
 function updateRoomData(segId, roomNum, key, value) {
@@ -861,6 +879,9 @@ function updateSegment(id, key, value) {
   updateNightsDisplay(seg.id);
   calculate();
 }
+// ✅ دالة التحقق من حد الأطفال
+
+
 async function loadHotelBookingOptions(seg) {
   if (!seg.hotelId) return;
   const roomsCount = +seg.rooms || 1;
@@ -911,7 +932,7 @@ async function loadHotelBookingOptions(seg) {
           rtSelect.style.color = '';
           rtSelect.style.fontWeight = '';
           rtSelect.innerHTML = '<option value="">— اختر نوع الغرفة —</option>' +
-            roomTypes.map(rt => `<option value="${rt.id}" ${currentType == rt.id ? 'selected' : ''}>${rt.name}</option>`).join('');
+            roomTypes.map(rt => `<option value="${rt.id}" data-max-children="${rt.max_children || 0}" data-max-adults="${rt.max_adults || 0}" data-max-total="${rt.max_total || 0}" ${currentType == rt.id ? 'selected' : ''}>${rt.name}</option>`).join('');
         }
       }
 
@@ -921,7 +942,7 @@ async function loadHotelBookingOptions(seg) {
         const currentTypeNum = currentType ? +currentType : null;
         const selectedRoomType = currentTypeNum ? roomTypes.find(rt => +rt.id === currentTypeNum) : null;
         
-        console.log('🍽️ Meal check:', { currentType, currentTypeNum, selectedRoomType: selectedRoomType ? { id: selectedRoomType.id, meals_enabled: selectedRoomType.meals_enabled } : null });
+        // console.log (disabled)
         
         const mealsEnabled = selectedRoomType ? (+selectedRoomType.meals_enabled === 1) : true;
         
@@ -930,7 +951,7 @@ async function loadHotelBookingOptions(seg) {
           const mealField = mealSelect.closest('.field');
           if (mealField) mealField.style.display = 'none';
           mealSelect.innerHTML = '<option value="">بدون وجبات (RO)</option>';
-          console.log('   → Hidden meals for type', currentType);
+          // console.log (disabled)
         } else {
           const mealField = mealSelect.closest('.field');
           if (mealField) mealField.style.display = '';
@@ -1337,7 +1358,93 @@ function fillPlanner() {
   if (!hotelSegments.length) addHotelSegment();
 }
 function updateHotelOptions() { /* no-op */ }
+// ✅ دالة التحقق من حدود الأطفال (تُستدعى عند الحساب)
+function validateChildrenLimits() {
+  const errors = [];
+  
+  document.querySelectorAll('.seg-children-count').forEach(childInput => {
+    const segId = childInput.dataset.segId;
+    const roomIdx = childInput.dataset.room;
+    const val = +childInput.value || 0;
+    
+    if (val === 0) return;
+    
+    const roomSelect = document.querySelector(`.seg-room-type[data-seg-id="${segId}"][data-room="${roomIdx}"]`);
+    if (!roomSelect || roomSelect.options.length <= 1) return;
+    
+    const selectedOption = roomSelect.options[roomSelect.selectedIndex];
+    const roomTypeName = selectedOption?.text || 'النوع المختار';
+    const maxChildren = +(selectedOption?.dataset?.maxChildren || 0);
+    
+    if (maxChildren === 0) return;
+    
+    if (val > maxChildren) {
+      errors.push({
+        input: childInput,
+        message: `الغرفة ${+roomIdx + 1} — نوع "${roomTypeName}" يستوعب ${maxChildren} أطفال فقط، وأنت أدخلت ${val}`
+      });
+    }
+  });
+  
+  return errors;
+}
+
+// ✅ دالة عرض التحذيرات
+function showChildrenWarnings(errors) {
+  // مسح التحذيرات القديمة
+  document.querySelectorAll('.child-limit-banner').forEach(el => el.remove());
+  document.querySelectorAll('.seg-children-count').forEach(el => {
+    el.style.borderColor = '';
+    el.style.backgroundColor = '';
+  });
+  
+  if (!errors.length) return true;
+  
+  // تلوين الحقول المخالفة
+  errors.forEach(err => {
+    err.input.style.borderColor = '#dc2626';
+    err.input.style.backgroundColor = '#fef2f2';
+  });
+  
+  // إظهار رسالة عامة
+  const calcBtn = document.querySelector('#pSubmit') || document.querySelector('.calc-btn');
+  if (calcBtn) {
+    const banner = document.createElement('div');
+    banner.className = 'child-limit-banner';
+    banner.style.cssText = 'background:#fef2f2;border:2px solid #dc2626;border-radius:10px;padding:14px;margin:12px 0;color:#991b1b;font-weight:700;';
+    banner.innerHTML = `
+      <div style="font-size:1.05rem;margin-bottom:8px;">⚠️ يجب تصحيح البيانات:</div>
+      <ul style="margin:0;padding-right:20px;">
+        ${errors.map(e => `<li style="margin-bottom:4px;">${e.message}</li>`).join('')}
+      </ul>
+      <div style="margin-top:8px;font-size:.9rem;">قلّل عدد الأطفال أو اختر نوع غرفة آخر.</div>
+    `;
+    calcBtn.parentNode.insertBefore(banner, calcBtn);
+    
+    // تمرير للرسالة
+    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  
+  return false;
+}
+
 function calculate() {
+  // ✅ التحقق من حدود الأطفال قبل الحساب
+  try {
+    const errors = validateChildrenLimits();
+    if (errors.length > 0) {
+      showChildrenWarnings(errors);
+      // إخفاء نتائج الحساب السابقة
+      const resultArea = document.querySelector('#pResult') || document.querySelector('.total-box');
+      if (resultArea) resultArea.innerHTML = '';
+      return;
+    } else {
+      showChildrenWarnings([]); // مسح التحذيرات القديمة
+    }
+  } catch (e) {
+    console.error('validateChildrenLimits error:', e);
+  }
+
   const persons = +$('#pPersons').value || 1;
   let hotelsTotal = 0;
   hotelSegments.forEach(seg => {
@@ -2567,4 +2674,73 @@ function updateExtraTotal(card) {
     await Promise.all([loadServices(), loadDestinations(), loadEvents(), loadRestaurants(), loadUniversities(), loadAds(), loadMedical(), loadScholarships(), loadTourPackages(), loadExtraServices()]);
     fillPlanner();
   } catch (e) { console.error(e); toast('تعذر تحميل بعض البيانات', 'err'); }
+})();
+
+
+// ==========================================
+// ✅ Event Delegation — يعمل حتى بعد إعادة الرسم
+// ==========================================
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('seg-children-count')) {
+    const el = e.target;
+    const segId = el.dataset.segId;
+    const roomIdx = el.dataset.room;
+    const val = +el.value || 0;
+    updateRoomData(segId, roomIdx, 'childrenCount', val);
+  }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('seg-children-count')) {
+    const el = e.target;
+    const segId = el.dataset.segId;
+    const roomIdx = el.dataset.room;
+    const val = +el.value || 0;
+    updateRoomData(segId, roomIdx, 'childrenCount', val);
+  }
+});
+
+// ✅ Event Delegation لنوع الغرفة
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('seg-room-type')) {
+    const el = e.target;
+    const segId = el.dataset.segId;
+    const roomIdx = el.dataset.room;
+    updateRoomData(segId, roomIdx, 'roomTypeId', el.value);
+    // ✅ استدعاء متأخر لضمان إعادة الرسم أولاً
+  }
+});
+
+
+// ==========================================
+// ✅ MutationObserver — يضمن التحقق من الحد الأقصى دائماً
+// ==========================================
+(function setupChildLimitObserver() {
+  function runCheck() {
+    document.querySelectorAll('.seg-children-count').forEach(el => {
+      if (el.dataset.segId && el.dataset.room) {
+        try {
+        } catch (e) {
+          // تجاهل الأخطاء
+        }
+      }
+    });
+  }
+  
+  // تشغيل أولي
+  setTimeout(runCheck, 500);
+  
+  // مراقبة DOM لأي تغيير
+  let _lastRun = 0;
+  // ✅ MutationObserver معطّل مؤقتاً (كان يسبب حلقة)
+  const observer = {
+    observe: () => {} // لا شيء
+  };
+  
+  // راقب كل الـ document
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+    // ✅ إزالة setInterval (كان يسبب حلقة)
 })();

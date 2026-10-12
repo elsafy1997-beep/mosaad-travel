@@ -160,7 +160,7 @@ async function renderTable(entity) {
   $('#viewContent').innerHTML = `
     <button class="btn btn-gold" id="addBtn" style="margin-bottom:16px">+ إضافة جديد</button>
     <table><thead><tr><th>ID</th>${cols.map(c => `<th>${c}</th>`).join('')}<th>إجراءات</th></tr></thead>
-      <tbody>${rows.length ? rows.map(r => `<tr><td>${r.id}</td>${cols.map(c => { let v = r[c]; if (typeof v === 'number' && c.includes('price')) v = fmt(v); if (c === 'active') v = v ? 'نعم' : 'لا'; return `<td>${v ?? ''}</td>`; }).join('')}<td class="row-actions"><button class="icon-btn" data-edit="${r.id}">تعديل</button>${isHotels ? `<button class="icon-btn" data-rooms="${r.id}" style="background:var(--navy);color:#fff;">🏠 أنواع الغرف</button><button class="icon-btn" data-meal-plans="${r.id}" style="background:#dc2626;color:#fff;">🍽️ خطط الوجبات</button>` : ''}<button class="icon-btn del" data-del="${r.id}">حذف</button></td></tr>`).join('') : `<tr><td colspan="${cols.length + 2}" style="text-align:center;color:var(--gray);padding:30px">لا توجد بيانات بعد</td></tr>`}</tbody></table>`;
+      <tbody>${rows.length ? rows.map(r => `<tr><td>${r.id}</td>${cols.map(c => { let v = r[c]; if (typeof v === 'number' && c.includes('price')) v = fmt(v); if (c === 'active') v = v ? 'نعم' : 'لا'; return `<td>${v ?? ''}</td>`; }).join('')}<td class="row-actions"><button class="icon-btn" data-edit="${r.id}">تعديل</button>${isHotels ? `<button class="icon-btn" data-rooms="${r.id}" style="background:var(--navy);color:#fff;">🏠 أنواع الغرف</button><button class="icon-btn" data-meal-plans="${r.id}" style="background:#dc2626;color:#fff;">🍽️ خطط الوجبات</button><button class="icon-btn" data-child-policy="${r.id}" style="background:#9333ea;color:#fff;">👶 سياسة الأطفال</button>` : ''}<button class="icon-btn del" data-del="${r.id}">حذف</button></td></tr>`).join('') : `<tr><td colspan="${cols.length + 2}" style="text-align:center;color:var(--gray);padding:30px">لا توجد بيانات بعد</td></tr>`}</tbody></table>`;
   $('#addBtn').onclick = () => openModal(entity, null, schema);
   $$('[data-edit]').forEach(b => b.onclick = () => openModal(entity, rows.find(x => x.id == b.dataset.edit), schema));
   $$('[data-del]').forEach(b => b.onclick = async () => {
@@ -177,6 +177,10 @@ async function renderTable(entity) {
     $$('[data-meal-plans]').forEach(b => b.onclick = () => {
       const hotel = rows.find(x => x.id == b.dataset.mealPlans);
       openMealPlansModal(hotel);
+    });
+    $$('[data-child-policy]').forEach(b => b.onclick = () => {
+      const hotel = rows.find(x => x.id == b.dataset.childPolicy);
+      openHotelChildPolicyModal(hotel);
     });
   }
 }
@@ -397,6 +401,21 @@ function openRoomTypeForm(hotel, row, onDone) {
         <div class="field"><label>أقصى إجمالي</label><input type="number" name="max_total" value="${r.max_total}" min="1"></div>
       </div>
       <div class="field"><label>الترتيب</label><input type="number" name="sort_order" value="${r.sort_order || 0}"></div>
+      
+      <!-- ✅ السرير الإضافي -->
+      <div class="field" style="background:#fef3c7;padding:12px;border-radius:8px;border:1px solid #fcd34d;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#78350f;margin-bottom:8px;">
+          <input type="checkbox" name="has_extra_bed" id="hasExtraBed" ${r.has_extra_bed ? 'checked' : ''} style="width:18px;height:18px;">
+          🛏️ يحتوي على سرير إضافي
+        </label>
+        <div id="extraBedFields" style="display:${r.has_extra_bed ? 'grid' : 'none'};grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px;">
+          <div class="field"><label>أقصى أسرة إضافية</label><input type="number" name="max_extra_beds" value="${r.max_extra_beds || 0}" min="0"></div>
+          <div class="field"><label>سعر السرير للبالغ</label><input type="number" name="extra_bed_adult_price" value="${r.extra_bed_adult_price || 0}" min="0"></div>
+          <div class="field"><label>سعر السرير للطفل</label><input type="number" name="extra_bed_child_price" value="${r.extra_bed_child_price || 0}" min="0"></div>
+        </div>
+      </div>
+      
+      <!-- ✅ تفعيل خطط الوجبات -->
       <div class="field" style="background:#f0f9ff;padding:12px;border-radius:8px;border:1px solid #bae6fd;">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#0c4a6e;">
           <input type="checkbox" name="meals_enabled" ${r.meals_enabled !== 0 ? 'checked' : ''} style="width:18px;height:18px;">
@@ -406,12 +425,33 @@ function openRoomTypeForm(hotel, row, onDone) {
           إذا معطّل، لن تظهر خطط الوجبات في Trip Planner لهذا النوع.
         </p>
       </div>
+      
+      <!-- ✅ تفعيل سياسة الأطفال -->
+      <div class="field" style="background:#fdf4ff;padding:12px;border-radius:8px;border:1px solid #e9d5ff;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#6b21a8;">
+          <input type="checkbox" name="child_policy_enabled" ${r.child_policy_enabled !== 0 ? 'checked' : ''} style="width:18px;height:18px;">
+          👶 تفعيل سياسة الأطفال الموحّدة لهذا النوع
+        </label>
+        <p style="font-size:.8rem;color:#7e22ce;margin-top:6px;">
+          إذا معطّل، لن تُحسب سياسة الأطفال لهذا النوع في Trip Planner.
+        </p>
+      </div>
+      
       <div class="field"><label><input type="checkbox" name="active" ${r.active ? 'checked' : ''}> مفعّل</label></div>
       <div class="modal-actions">
         <button type="button" class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إلغاء</button>
         <button type="submit" class="btn btn-gold">حفظ</button>
       </div>
     </form>`;
+
+  // ✅ إظهار/إخفاء حقول السرير الإضافي
+  const hasExtraBedCb = $('#hasExtraBed');
+  if (hasExtraBedCb) {
+    hasExtraBedCb.onchange = (e) => {
+      const fields = $('#extraBedFields');
+      if (fields) fields.style.display = e.target.checked ? 'grid' : 'none';
+    };
+  }
 
   $('#roomTypeForm').onsubmit = async (e) => {
     e.preventDefault();
@@ -424,6 +464,11 @@ function openRoomTypeForm(hotel, row, onDone) {
       max_children: +fd.get('max_children'),
       max_total: +fd.get('max_total'),
       meals_enabled: fd.get('meals_enabled') ? 1 : 0,
+      has_extra_bed: fd.get('has_extra_bed') ? 1 : 0,
+      max_extra_beds: +fd.get('max_extra_beds') || 0,
+      extra_bed_adult_price: +fd.get('extra_bed_adult_price') || 0,
+      extra_bed_child_price: +fd.get('extra_bed_child_price') || 0,
+      child_policy_enabled: fd.get('child_policy_enabled') ? 1 : 0,
       sort_order: +fd.get('sort_order'),
       active: fd.get('active') ? 1 : 0
     };
@@ -443,25 +488,60 @@ async function openRoomPricesModal(hotel, roomType) {
   $('#modalContent').innerHTML = `
     <h2>أسعار: ${roomType.name}</h2>
     <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${hotel.name}</p>
+    
     <form id="addPriceForm" style="background:var(--light);padding:16px;border-radius:12px;margin-bottom:16px;">
-      <h4 style="margin-bottom:12px;font-size:.95rem;">+ إضافة فترة سعر جديدة</h4>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="field"><label>من تاريخ</label><input type="date" name="date_from" required></div>
-        <div class="field"><label>إلى تاريخ</label><input type="date" name="date_to" required></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+      <h4 style="margin-bottom:12px;font-size:.95rem;">+ إضافة فترات أسعار (متعددة)</h4>
+      
+      <!-- ✅ حقول الأسعار الأساسية -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
         <div class="field"><label>سعر فردي (RUB)</label><input type="number" name="price_single" placeholder="مثال: 24500"></div>
         <div class="field"><label>سعر مزدوج (RUB)</label><input type="number" name="price_double" placeholder="مثال: 28500"></div>
-        <div class="field"><label>سعر ثلاثي (اختياري)</label><input type="number" name="price_triple"></div>
-        <div class="field"><label>سعر رباعي (اختياري)</label><input type="number" name="price_quad"></div>
       </div>
-      <button type="submit" class="btn btn-gold" style="margin-top:12px;">إضافة الفترة</button>
+      
+      <div style="border-top:1px dashed var(--gray);padding-top:12px;margin-bottom:10px;">
+        <label style="font-weight:700;font-size:.9rem;">الفترات (أضف صفوفاً متعددة):</label>
+      </div>
+      
+      <!-- ✅ قائمة الفترات -->
+      <div id="pricePeriodsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      
+      <button type="button" id="addPeriodBtn" class="icon-btn" style="margin-top:10px;background:#0369a1;color:#fff;">+ إضافة فترة</button>
+      
+      <button type="submit" class="btn btn-gold" style="margin-top:12px;width:100%;">💾 حفظ كل الفترات</button>
     </form>
     <h4 style="margin-bottom:10px;font-size:.95rem;">الفترات الحالية:</h4>
     <div id="roomPricesList"><p style="text-align:center;color:var(--gray);">جاري التحميل...</p></div>
     <div class="modal-actions">
       <button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button>
     </div>`;
+
+  // ✅ دالة لإضافة صف فترة جديد
+  const addPeriodRow = (dateFrom = '', dateTo = '') => {
+    const container = $('#pricePeriodsList');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'period-row';
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;background:#fff;padding:10px;border-radius:8px;border:1px solid #e5e7eb;';
+    row.innerHTML = `
+      <div class="field"><label style="font-size:.8rem;">من تاريخ</label><input type="date" class="period-from" value="${dateFrom}"></div>
+      <div class="field"><label style="font-size:.8rem;">إلى تاريخ</label><input type="date" class="period-to" value="${dateTo}"></div>
+      <button type="button" class="icon-btn del remove-period" style="height:42px;">🗑️</button>
+    `;
+    container.appendChild(row);
+    row.querySelector('.remove-period').onclick = () => row.remove();
+  };
+
+  // ✅ إضافة صف واحد افتراضياً
+  addPeriodRow();
+
+  // ✅ زر "إضافة فترة"
+  const addBtn = $('#addPeriodBtn');
+  if (addBtn) {
+    addBtn.onclick = (e) => {
+      e.preventDefault();
+      addPeriodRow();
+    };
+  }
 
   const loadPrices = async () => {
     try {
@@ -502,7 +582,6 @@ async function openRoomPricesModal(hotel, roomType) {
           <thead><tr>
             <th style="padding:8px;">من</th><th style="padding:8px;">إلى</th>
             <th style="padding:8px;">فردي</th><th style="padding:8px;">مزدوج</th>
-            <th style="padding:8px;">ثلاثي</th><th style="padding:8px;">رباعي</th>
             <th style="padding:8px;"></th>
           </tr></thead>
           <tbody>${list.map(p => `<tr>
@@ -510,8 +589,6 @@ async function openRoomPricesModal(hotel, roomType) {
             <td style="padding:8px;">${p.date_to}</td>
             <td style="padding:8px;">${p.price_single ? p.price_single.toLocaleString('ar-EG') : '—'}</td>
             <td style="padding:8px;">${p.price_double ? p.price_double.toLocaleString('ar-EG') : '—'}</td>
-            <td style="padding:8px;">${p.price_triple ? p.price_triple.toLocaleString('ar-EG') : '—'}</td>
-            <td style="padding:8px;">${p.price_quad ? p.price_quad.toLocaleString('ar-EG') : '—'}</td>
             <td style="padding:8px;"><button class="icon-btn del" data-del-price="${p.id}">حذف</button></td>
           </tr>`).join('')}</tbody>
         </table>`;
@@ -530,24 +607,63 @@ async function openRoomPricesModal(hotel, roomType) {
   $('#addPriceForm').onsubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd);
+    const price_single = +fd.get('price_single') || 0;
+    const price_double = +fd.get('price_double') || 0;
     
     // ✅ التحقق من وجود سعر واحد على الأقل
-    const hasPrice = data.price_single || data.price_double || data.price_triple || data.price_quad;
-    if (!hasPrice) {
-      toast('يجب إدخال سعر واحد على الأقل (فردي أو مزدوج أو ثلاثي أو رباعي)', 'err');
+    if (!price_single && !price_double) {
+      toast('يجب إدخال سعر فردي أو مزدوج على الأقل', 'err');
       return;
     }
     
-    try {
-      await api('/api/admin/room-types/' + roomType.id + '/prices', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-      toast('تمت الإضافة', 'ok');
-      e.target.reset();
+    // ✅ جمع كل الفترات
+    const periods = [];
+    $$('.period-row').forEach(row => {
+      const fromInput = row.querySelector('.period-from');
+      const toInput = row.querySelector('.period-to');
+      if (!fromInput || !toInput) return;
+      const from = fromInput.value;
+      const to = toInput.value;
+      if (from && to) {
+        periods.push({ date_from: from, date_to: to });
+      }
+    });
+    
+    if (!periods.length) {
+      toast('أضف فترة واحدة على الأقل (من تاريخ → إلى تاريخ)', 'err');
+      return;
+    }
+    
+    // ✅ إرسال كل الفترات
+    let saved = 0;
+    let failed = 0;
+    for (const period of periods) {
+      try {
+        await api('/api/admin/room-types/' + roomType.id + '/prices', {
+          method: 'POST',
+          body: JSON.stringify({
+            date_from: period.date_from,
+            date_to: period.date_to,
+            price_single: price_single,
+            price_double: price_double
+          })
+        });
+        saved++;
+      } catch (err) {
+        failed++;
+        console.error('فشل حفظ فترة:', period, err);
+      }
+    }
+    
+    if (saved > 0) {
+      toast(`✅ تم حفظ ${saved} فترة${failed ? ` (فشل ${failed})` : ''}`, 'ok');
       loadPrices();
-    } catch (err) { toast(err.message, 'err'); }
+      // تنظيف النموذج
+      $$('.period-row').forEach(r => r.remove());
+      addPeriodRow();
+    } else {
+      toast('لم يتم حفظ أي فترة', 'err');
+    }
   };
 
   loadPrices();
@@ -664,6 +780,124 @@ function openChildPolicyForm(roomType, onDone) {
 }
 
 /* ===== MEAL PLANS MODAL ===== */
+/* ===== HOTEL CHILD POLICY (سياسة موحّدة للفندق) ===== */
+async function openHotelChildPolicyModal(hotel) {
+  $('#modalContent').innerHTML = `
+    <h2>👶 سياسة الأطفال الموحّدة</h2>
+    <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">
+      <strong>${hotel.name}</strong><br>
+      <small>هذه السياسة تُطبَّق على كل أنواع الغرف التي فيها "تفعيل سياسة الأطفال الموحّدة".</small>
+    </p>
+
+    <form id="addHotelPolicyForm" style="background:#fdf4ff;padding:16px;border-radius:12px;margin-bottom:16px;border:1px solid #e9d5ff;">
+      <h4 style="margin-bottom:12px;font-size:.95rem;color:#6b21a8;">+ إضافة سياسة جديدة</h4>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="field"><label>من عمر</label><input type="number" name="age_from" required min="0" max="18" value="0"></div>
+        <div class="field"><label>إلى عمر</label><input type="number" name="age_to" required min="0" max="18" value="5"></div>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="field">
+          <label>نوع السرير</label>
+          <select name="bed_type">
+            <option value="base">🛏️ السرير الأساسي</option>
+            <option value="extra">➕ سرير إضافي</option>
+            <option value="baby">👶 سرير أطفال</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>نوع السعر</label>
+          <select name="price_type">
+            <option value="free">🎁 مجاني</option>
+            <option value="fixed">💰 سعر ثابت (RUB)</option>
+            <option value="percent">📊 نسبة من سعر الشخص</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="field" style="margin-bottom:10px;">
+        <label>القيمة (RUB أو %)</label>
+        <input type="number" name="price_value" value="0" min="0">
+      </div>
+      
+      <button type="submit" class="btn btn-gold">إضافة</button>
+    </form>
+
+    <h4 style="margin-bottom:10px;font-size:.95rem;">السياسات الحالية:</h4>
+    <div id="hotelPoliciesList"><p style="text-align:center;color:var(--gray);">جاري التحميل...</p></div>
+    
+    <div class="modal-actions">
+      <button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button>
+    </div>
+  `;
+  $('#modalBg').classList.add('show');
+
+  const loadPolicies = async () => {
+    try {
+      const list = await api('/api/admin/hotels/' + hotel.id + '/child-policy');
+      if (!list.length) {
+        $('#hotelPoliciesList').innerHTML = '<p style="text-align:center;color:var(--gray);padding:14px;">لا توجد سياسات بعد. أضف سياسة جديدة.</p>';
+        return;
+      }
+      
+      const bedLabels = { base: '🛏️ أساسي', extra: '➕ إضافي', baby: '👶 أطفال' };
+      const priceLabels = { free: '🎁 مجاني', fixed: '💰 ثابت', percent: '📊 نسبة' };
+      
+      $('#hotelPoliciesList').innerHTML = `
+        <table style="width:100%;font-size:.85rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--shadow);border-collapse:collapse;">
+          <thead><tr>
+            <th style="padding:8px;">العمر</th>
+            <th style="padding:8px;">نوع السرير</th>
+            <th style="padding:8px;">نوع السعر</th>
+            <th style="padding:8px;">القيمة</th>
+            <th style="padding:8px;"></th>
+          </tr></thead>
+          <tbody>${list.map(p => `<tr>
+            <td style="padding:8px;">${p.age_from} → ${p.age_to} سنة</td>
+            <td style="padding:8px;">${bedLabels[p.bed_type] || p.bed_type}</td>
+            <td style="padding:8px;">${priceLabels[p.price_type] || p.price_type}</td>
+            <td style="padding:8px;font-weight:700;">${p.price_type === 'free' ? '—' : p.price_value.toLocaleString('ar-EG')}</td>
+            <td style="padding:8px;"><button class="icon-btn del" data-del-hotel-policy="${p.id}">حذف</button></td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+      
+      $$('[data-del-hotel-policy]').forEach(b => b.onclick = async () => {
+        if (!confirm('حذف هذه السياسة؟')) return;
+        await api('/api/admin/hotel-policies/' + b.dataset.delHotelPolicy, { method: 'DELETE' });
+        toast('تم الحذف', 'ok');
+        loadPolicies();
+      });
+    } catch (e) {
+      console.error(e);
+      $('#hotelPoliciesList').innerHTML = '<p style="text-align:center;color:#dc2626;">خطأ في التحميل</p>';
+    }
+  };
+  
+  $('#addHotelPolicyForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      age_from: +fd.get('age_from'),
+      age_to: +fd.get('age_to'),
+      bed_type: fd.get('bed_type'),
+      price_type: fd.get('price_type'),
+      price_value: +fd.get('price_value') || 0
+    };
+    try {
+      await api('/api/admin/hotels/' + hotel.id + '/child-policy', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      toast('تمت الإضافة', 'ok');
+      e.target.reset();
+      loadPolicies();
+    } catch (err) { toast(err.message, 'err'); }
+  };
+
+  loadPolicies();
+}
+
 async function openMealPlansModal(hotel) {
   $('#modalContent').innerHTML = `
     <h2>🍽️ خطط الوجبات — ${hotel.name}</h2>

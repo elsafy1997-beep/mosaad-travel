@@ -63,6 +63,7 @@ export function initDb() {
       max_children INTEGER DEFAULT 0,
       max_total INTEGER DEFAULT 2,
       meals_enabled INTEGER DEFAULT 1,
+      child_policy_enabled INTEGER DEFAULT 1,
       base_bed_type TEXT DEFAULT 'double',
       has_extra_bed INTEGER DEFAULT 0,
       max_extra_beds INTEGER DEFAULT 0,
@@ -157,6 +158,20 @@ export function initDb() {
       FOREIGN KEY (room_type_id) REFERENCES hotel_room_types(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_child_policies_room ON hotel_child_policies(room_type_id);
+    
+    -- ✅ جدول جديد: سياسة الأطفال الموحّدة لكل فندق
+    CREATE TABLE IF NOT EXISTS hotel_policies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hotel_id INTEGER NOT NULL,
+      age_from INTEGER NOT NULL,
+      age_to INTEGER NOT NULL,
+      bed_type TEXT DEFAULT 'base',
+      price_type TEXT DEFAULT 'free',
+      price_value INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_hotel_policies_hotel ON hotel_policies(hotel_id);
     CREATE TABLE IF NOT EXISTS hotel_room_occupancy_rules (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       room_type_id INTEGER NOT NULL,
@@ -475,6 +490,18 @@ export function initDb() {
     }
   } catch (e) {
     console.log('Migration warning (hotels):', e.message);
+  }
+  
+  // ✅ Migration: إضافة child_policy_enabled إلى hotel_room_types
+  try {
+    const cols = db.prepare("PRAGMA table_info(hotel_room_types)").all();
+    const hasCol = cols.some(c => c.name === 'child_policy_enabled');
+    if (!hasCol) {
+      db.exec('ALTER TABLE hotel_room_types ADD COLUMN child_policy_enabled INTEGER DEFAULT 1');
+      console.log('✅ Migration: child_policy_enabled added to hotel_room_types');
+    }
+  } catch (e) {
+    console.log('Migration warning (room_types):', e.message);
   }
   
   // Auto-cleanup: remove visits older than 12 months

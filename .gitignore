@@ -28,3 +28,4 @@ package-lock.json
 # Editor files
 .vscode/
 .idea/
+.backups/

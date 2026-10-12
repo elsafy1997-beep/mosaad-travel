@@ -677,13 +677,14 @@ app.post('/api/admin/hotels/:hotelId/room-types', (req, res) => {
     const d = req.body || {};
     if (!d.name) return err(res, 400, 'الاسم مطلوب');
     const info = db.prepare(`
-      INSERT INTO hotel_room_types (hotel_id, name, description, image, max_adults, max_children, max_total, meals_enabled, sort_order, active)
-      VALUES (?,?,?,?,?,?,?,?,?,?)
+      INSERT INTO hotel_room_types (hotel_id, name, description, image, max_adults, max_children, max_total, meals_enabled, child_policy_enabled, sort_order, active)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       req.params.hotelId,
       d.name, d.description || '', d.image || '',
       +d.max_adults || 2, +d.max_children || 0, +d.max_total || 2,
       d.meals_enabled === 0 ? 0 : 1,
+      d.child_policy_enabled === 0 ? 0 : 1,
       +d.sort_order || 0, d.active === 0 ? 0 : 1
     );
     ok(res, { ok: true, id: info.lastInsertRowid });
@@ -692,7 +693,7 @@ app.post('/api/admin/hotels/:hotelId/room-types', (req, res) => {
 
 app.put('/api/admin/room-types/:id', (req, res) => {
   try {
-    const fields = ['name','description','image','max_adults','max_children','max_total','meals_enabled','sort_order','active'];
+    const fields = ['name','description','image','max_adults','max_children','max_total','meals_enabled','child_policy_enabled','sort_order','active'];
     const data = {};
     fields.forEach(f => { if (f in req.body) data[f] = req.body[f]; });
     if (!Object.keys(data).length) return ok(res, { ok: true });
@@ -719,13 +720,12 @@ app.post('/api/admin/room-types/:roomTypeId/prices', (req, res) => {
     if (!d.date_from || !d.date_to) return err(res, 400, 'التواريخ مطلوبة');
     if (new Date(d.date_to) < new Date(d.date_from)) return err(res, 400, 'تاريخ النهاية بعد البداية');
 
-    // Check overlap
-    const conflict = db.prepare(
-      `SELECT * FROM hotel_room_prices 
+    // ✅ حذف أي فترات متداخلة تلقائياً (استبدال)
+    db.prepare(
+      `DELETE FROM hotel_room_prices 
        WHERE room_type_id=? 
          AND NOT (date_to < ? OR date_from > ?)`
-    ).get(req.params.roomTypeId, d.date_from, d.date_to);
-    if (conflict) return err(res, 400, 'التواريخ تتداخل مع فترة موجودة (' + conflict.date_from + ' → ' + conflict.date_to + ')');
+    ).run(req.params.roomTypeId, d.date_from, d.date_to);
 
     const info = db.prepare(`
       INSERT INTO hotel_room_prices (room_type_id, date_from, date_to, price_single, price_double, price_triple, price_quad)
@@ -1219,10 +1219,17 @@ app.get('/api/booking/child-bed-types/:roomTypeId', (req, res) => {
     
     const ageNum = +age;
     
-    // جلب كل السياسات المطابقة للعمر
+    // 1) جلب نوع الغرفة
+    const rt = db.prepare('SELECT * FROM hotel_room_types WHERE id=?').get(roomTypeId);
+    if (!rt) return ok(res, []);
+    
+    // 2) إذا السياسة معطّلة → لا شيء
+    if (!rt.child_policy_enabled) return ok(res, []);
+    
+    // 3) قراءة من السياسة الموحّدة (hotel_policies)
     const policies = db.prepare(`
-      SELECT * FROM hotel_child_policies 
-      WHERE room_type_id = ? 
+      SELECT * FROM hotel_policies 
+      WHERE hotel_id = ? 
         AND age_from <= ? 
         AND age_to >= ?
       ORDER BY 
@@ -1231,7 +1238,7 @@ app.get('/api/booking/child-bed-types/:roomTypeId', (req, res) => {
           WHEN 'child' THEN 2 
           WHEN 'extra' THEN 3 
         END
-    `).all(roomTypeId, ageNum, ageNum);
+    `).all(rt.hotel_id, ageNum, ageNum);
     
     // ✅ تجميع حسب bed_type (الأول لكل نوع)
     const bedTypes = {};
@@ -1322,6 +1329,67 @@ function calcHotelPrice(hotel, from, to) {
   }
   return { nights, total, breakdown, default_price: hotel.price_rub };
 }
+
+/* ===== HOTEL CHILD POLICY (سياسة موحّدة لكل فندق) ===== */
+
+// جلب سياسة الفندق الموحّدة
+app.get('/api/admin/hotels/:hotelId/child-policy', (req, res) => {
+  try {
+    const rows = db.prepare('SELECT * FROM hotel_policies WHERE hotel_id=? ORDER BY bed_type, age_from').all(req.params.hotelId);
+    ok(res, rows);
+  } catch (e) { console.error(e); err(res, 500, 'خطأ'); }
+});
+
+// إضافة سياسة جديدة للفندق
+app.post('/api/admin/hotels/:hotelId/child-policy', (req, res) => {
+  try {
+    const d = req.body || {};
+    if (d.age_from === undefined || d.age_to === undefined) {
+      return err(res, 400, 'العمر مطلوب');
+    }
+    const info = db.prepare(`
+      INSERT INTO hotel_policies (hotel_id, age_from, age_to, bed_type, price_type, price_value)
+      VALUES (?,?,?,?,?,?)
+    `).run(
+      req.params.hotelId,
+      +d.age_from || 0,
+      +d.age_to || 0,
+      d.bed_type || 'base',
+      d.price_type || 'free',
+      +d.price_value || 0
+    );
+    ok(res, { ok: true, id: info.lastInsertRowid });
+  } catch (e) { console.error(e); err(res, 500, 'خطأ'); }
+});
+
+// تعديل سياسة
+app.put('/api/admin/hotel-policies/:id', (req, res) => {
+  try {
+    const fields = ['age_from','age_to','bed_type','price_type','price_value'];
+    const data = {};
+    fields.forEach(f => { if (f in req.body) data[f] = req.body[f]; });
+    if (!Object.keys(data).length) return ok(res, { ok: true });
+    const sets = Object.keys(data).map(k => `${k}=?`).join(',');
+    db.prepare(`UPDATE hotel_policies SET ${sets} WHERE id=?`).run(...Object.values(data), req.params.id);
+    ok(res, { ok: true });
+  } catch (e) { console.error(e); err(res, 500, 'خطأ'); }
+});
+
+// حذف سياسة
+app.delete('/api/admin/hotel-policies/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM hotel_policies WHERE id=?').run(req.params.id);
+    ok(res, { ok: true });
+  } catch (e) { console.error(e); err(res, 500, 'خطأ'); }
+});
+
+// حذف كل سياسات فندق (لاستبدالها)
+app.delete('/api/admin/hotels/:hotelId/child-policy', (req, res) => {
+  try {
+    db.prepare('DELETE FROM hotel_policies WHERE hotel_id=?').run(req.params.hotelId);
+    ok(res, { ok: true });
+  } catch (e) { console.error(e); err(res, 500, 'خطأ'); }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`MOSAAD running on http://localhost:${PORT}`));
