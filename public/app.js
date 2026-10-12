@@ -1528,6 +1528,11 @@ $('#pSubmit').onclick = async () => {
     hotelLines.push('فندق رقم ' + (idx + 1) + ':');
     hotelLines.push('- المدينة: ' + seg.city);
     hotelLines.push('- الفندق: ' + hotel.name);
+    // ✅ إضافة عنوان الفندق إذا كان موجوداً
+    if (hotel.address && hotel.address.trim() !== '') {
+      hotelLines.push('- العنوان: ' + hotel.address);
+    }
+    
     // ✅ إضافة رابط الفندق إذا كان موجوداً
     if (hotel.website && hotel.website.trim() !== '') {
       hotelLines.push('- رابط الفندق: ' + hotel.website);
