@@ -677,13 +677,17 @@ app.post('/api/admin/hotels/:hotelId/room-types', (req, res) => {
     const d = req.body || {};
     if (!d.name) return err(res, 400, 'الاسم مطلوب');
     const info = db.prepare(`
-      INSERT INTO hotel_room_types (hotel_id, name, description, image, max_adults, max_children, max_total, meals_enabled, child_policy_enabled, sort_order, active)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      INSERT INTO hotel_room_types (hotel_id, name, description, image, max_adults, max_children, max_total, meals_enabled, has_extra_bed, max_extra_beds, extra_bed_adult_price, extra_bed_child_price, child_policy_enabled, sort_order, active)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       req.params.hotelId,
       d.name, d.description || '', d.image || '',
       +d.max_adults || 2, +d.max_children || 0, +d.max_total || 2,
       d.meals_enabled === 0 ? 0 : 1,
+      d.has_extra_bed === 0 ? 0 : 1,
+      +d.max_extra_beds || 0,
+      +d.extra_bed_adult_price || 0,
+      +d.extra_bed_child_price || 0,
       d.child_policy_enabled === 0 ? 0 : 1,
       +d.sort_order || 0, d.active === 0 ? 0 : 1
     );
@@ -693,7 +697,7 @@ app.post('/api/admin/hotels/:hotelId/room-types', (req, res) => {
 
 app.put('/api/admin/room-types/:id', (req, res) => {
   try {
-    const fields = ['name','description','image','max_adults','max_children','max_total','meals_enabled','child_policy_enabled','sort_order','active'];
+    const fields = ['name','description','image','max_adults','max_children','max_total','meals_enabled','has_extra_bed','max_extra_beds','extra_bed_adult_price','extra_bed_child_price','child_policy_enabled','sort_order','active'];
     const data = {};
     fields.forEach(f => { if (f in req.body) data[f] = req.body[f]; });
     if (!Object.keys(data).length) return ok(res, { ok: true });
