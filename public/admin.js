@@ -128,7 +128,7 @@ const SCHEMAS = {
     { k: 'name', l: 'الاسم', type: 'text', required: 1 },
     { k: 'description', l: 'الوصف', type: 'textarea' },
     { k: 'price_rub', l: 'السعر (RUB)', type: 'number' },
-    { k: 'price_unit', l: 'وحدة الحساب', type: 'select', options: [['order', 'للطلب'], ['day', 'لليوم'], ['tour', 'للجولة']] },
+    { k: 'price_unit', l: 'وحدة الحساب', type: 'select', options: [['order', 'للطلب'], ['day', 'لليوم'], ['tour', 'للجولة'], ['person', 'للفرد'], ['car', 'للسيارة'], ['from', 'يبدأ من']] },
     { k: 'allow_quantity', l: 'يمكن تحديد العدد', type: 'bool' },
     { k: 'note', l: 'ملاحظة (مثل اسم المدينة)', type: 'text' },
     { k: 'active', l: 'مفعّل', type: 'bool' }

@@ -154,12 +154,15 @@ async function loadEvents() {
   const emptyMsg = '<p style="text-align:center;color:var(--gray);grid-column:1/-1;padding:20px;">لا توجد فعاليات متاحة حالياً.</p>';
   const moscow = list.filter(e => (e.city || '').trim() === 'موسكو');
   const sochi  = list.filter(e => (e.city || '').trim() === 'سوتشي');
-  const other  = list.filter(e => !['موسكو', 'سوتشي'].includes((e.city || '').trim()));
+  const murmansk = list.filter(e => (e.city || '').trim() === 'مورمانسك');
+  const other  = list.filter(e => !['موسكو', 'سوتشي', 'مورمانسك'].includes((e.city || '').trim()));
   const moscowGrid = document.getElementById('eventsMoscow');
   const sochiGrid  = document.getElementById('eventsSochi');
+  const murmanskGrid = document.getElementById('eventsMurmansk');
   const otherGrid  = document.getElementById('eventsOther');
   if (moscowGrid) moscowGrid.innerHTML = moscow.length ? moscow.map(renderCard).join('') : emptyMsg;
   if (sochiGrid)  sochiGrid.innerHTML  = sochi.length  ? sochi.map(renderCard).join('')  : emptyMsg;
+  if (murmanskGrid) murmanskGrid.innerHTML = murmansk.length ? murmansk.map(renderCard).join('') : emptyMsg;
   if (otherGrid)  otherGrid.innerHTML  = other.length  ? other.map(renderCard).join('')  : emptyMsg;
 }
 /* ============ RESTAURANTS ============ */
@@ -1314,7 +1317,8 @@ function fillPlanner() {
 
   const moscowEvents = EVENTS.filter(e => (e.city || '').trim() === 'موسكو');
   const sochiEvents  = EVENTS.filter(e => (e.city || '').trim() === 'سوتشي');
-  const otherEvents  = EVENTS.filter(e => !['موسكو', 'سوتشي'].includes((e.city || '').trim()));
+  const murmanskEvents = EVENTS.filter(e => (e.city || '').trim() === 'مورمانسك');
+  const otherEvents  = EVENTS.filter(e => !['موسكو', 'سوتشي', 'مورمانسك'].includes((e.city || '').trim()));
 
   const renderEvent = (e) => `
     <label class="event-check" data-id="${e.id}" data-price="${e.price_rub}" data-type="event" data-city="${e.city || ''}">
@@ -1323,12 +1327,13 @@ function fillPlanner() {
         <span class="ev-name">${e.name}</span>
         <span class="ev-price">${fmt(e.price_rub)} / للتذكرة</span>
       </span>
-      <input type="number" class="ev-tickets" min="1" value="1" disabled>
+      <input type="number" class="ev-tickets" min="1" value="1">
     </label>`;
 
   let html = '';
   if (moscowEvents.length) html += '<div class="events-section-title">فعاليات موسكو</div>' + moscowEvents.map(renderEvent).join('');
   if (sochiEvents.length)  html += '<div class="events-section-title">فعاليات سوتشي</div>' + sochiEvents.map(renderEvent).join('');
+  if (murmanskEvents.length) html += '<div class="events-section-title">فعاليات مورمانسك</div>' + murmanskEvents.map(renderEvent).join('');
   if (otherEvents.length)  html += '<div class="events-section-title">فعاليات أخرى</div>' + otherEvents.map(renderEvent).join('');
 
   $('#pEvents').innerHTML = html || '<p style="text-align:center;color:var(--gray);grid-column:1/-1;">لا توجد فعاليات متاحة.</p>';
@@ -1340,6 +1345,18 @@ function fillPlanner() {
     tickets.disabled = !cb.checked;
     calculate();
   });
+  // ✅ مستمع لتغيير عدد التذاكر
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.classList.contains('ev-tickets')) {
+      calculate();
+    }
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.classList.contains('ev-tickets')) {
+      calculate();
+    }
+  });
+
   $$('.event-check .ev-tickets').forEach(inp => {
     inp.onchange = calculate;
     inp.oninput = calculate;
@@ -1485,9 +1502,10 @@ function calculate() {
     const price = +card.dataset.price || 0;
     const unit = card.dataset.unit;
     let count = 1;
-    if (unit === 'day' || unit === 'tour') {
-      const countInput = card.querySelector('.tour-count');
-      count = countInput ? (+countInput.value || 1) : 1;
+    // ✅ قراءة العدد لأي وحدة (day/tour/person/car)
+    const countInput = card.querySelector('.tour-count');
+    if (countInput) {
+      count = +countInput.value || 1;
     }
     tourPackagesTotal += price * count;
   });
@@ -1584,11 +1602,12 @@ $('#pSubmit').onclick = async () => {
     const price = +card.dataset.price || 0;
     const unit = card.dataset.unit;
     let count = 1;
-    if (unit === 'day' || unit === 'tour') {
-      const countInput = card.querySelector('.tour-count');
-      count = countInput ? (+countInput.value || 1) : 1;
+    // ✅ قراءة العدد لكل الوحدات (day/tour/person/car)
+    const countInput = card.querySelector('.tour-count');
+    if (countInput) {
+      count = +countInput.value || 1;
     }
-    const unitLabel = unit === 'day' ? 'أيام' : unit === 'tour' ? 'جولات' : 'طلب';
+    const unitLabel = unit === 'day' ? 'أيام' : unit === 'tour' ? 'جولات' : unit === 'person' ? 'أفراد' : unit === 'car' ? 'سيارات' : unit === 'from' ? 'يبدأ من' : 'طلب';
     return { name, price, unit, count, unitLabel, total: price * count };
   });
 
@@ -2474,21 +2493,29 @@ function renderTourPackages() {
     return;
   }
 
-  const unitLabel = u => ({ order: 'للطلب', day: 'لليوم', tour: 'للجولة' }[u] || 'للطلب');
+  const unitLabel = u => ({ order: 'للطلب', day: 'لليوم', tour: 'للجولة', person: 'للفرد', car: 'للسيارة', from: 'يبدأ من' }[u] || 'للطلب');
 
   container.innerHTML = TOUR_PACKAGES.map(t => {
-    const isCountable = t.price_unit === 'day' || t.price_unit === 'tour';
+    // ✅ الحقل يظهر فقط إذا allow_quantity = 1
+    const showCount = (t.allow_quantity || 0) == 1;
+    // ✅ تسمية الحقل حسب نوع الوحدة
+    const countLabel = t.price_unit === 'day' ? 'عدد الأيام' 
+      : t.price_unit === 'person' ? 'عدد الأفراد' 
+      : t.price_unit === 'car' ? 'عدد السيارات' 
+      : t.price_unit === 'tour' ? 'عدد الجولات'
+      : 'العدد';
+    
     return `
-      <div class="tour-card" data-id="${t.id}" data-price="${t.price_rub}" data-unit="${t.price_unit}">
+      <div class="tour-card" data-id="${t.id}" data-price="${t.price_rub}" data-unit="${t.price_unit}" data-allow-qty="${t.allow_quantity || 0}">
         <div class="tour-card-head">
           <div class="tour-card-name">${t.name}</div>
           <div class="tour-card-price">${fmt(t.price_rub)} / ${unitLabel(t.price_unit)}</div>
         </div>
         ${t.description ? `<div class="tour-card-desc">${t.description}</div>` : ''}
         ${t.note ? `<div class="tour-card-note">${t.note}</div>` : ''}
-        ${isCountable ? `
+        ${showCount ? `
           <div class="tour-count-row">
-            <label>${t.price_unit === 'day' ? 'عدد الأيام' : 'عدد الجولات'}:</label>
+            <label>${countLabel}:</label>
             <input type="number" class="tour-count" min="1" value="1">
           </div>
           <div class="tour-total"></div>
@@ -2533,13 +2560,13 @@ function renderTourPackages() {
 
 function updateTourTotal(card) {
   const price = +card.dataset.price || 0;
-  const unit = card.dataset.unit;
   const countInput = card.querySelector('.tour-count');
   const totalEl = card.querySelector('.tour-total');
   if (!totalEl) return;
+  // ✅ قراءة العدد لكل الوحدات (day/tour/person/car)
   let count = 1;
-  if (unit === 'day' || unit === 'tour') {
-    count = countInput ? (+countInput.value || 1) : 1;
+  if (countInput) {
+    count = +countInput.value || 1;
   }
   const total = price * count;
   totalEl.textContent = 'المجموع: ' + fmt(total);

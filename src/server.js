@@ -589,7 +589,7 @@ app.delete('/api/admin/medical/:id', (req, res) => {
 app.use('/api/admin/scholarships', crud('scholarships', ['name','description','website','deadline','image','active']));
 
 /* ===== ADMIN TOURS ===== */
-app.use('/api/admin/tours', crud('tours', ['name','description','price_rub','price_unit','note','active']));
+app.use('/api/admin/tours', crud('tours', ['name','description','price_rub','price_unit','allow_quantity','note','active']));
 
 /* ===== ADMIN EXTRA SERVICES ===== */
 app.use('/api/admin/extra-services', crud('extra_services', ['name','description','price_rub','price_unit','note','allow_quantity','active']));
