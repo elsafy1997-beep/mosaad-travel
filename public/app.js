@@ -1330,13 +1330,40 @@ function fillPlanner() {
       <input type="number" class="ev-tickets" min="1" value="1">
     </label>`;
 
+  // ✅ Collapsible Sections — كل قسم زر مستقل
+  const renderSection = (title, id, events) => {
+    if (!events.length) return '';
+    return `
+      <div class="collapsible-section">
+        <button type="button" class="collapsible-header" data-target="p-${id}-content">
+          <span>${title}</span>
+          <span class="arrow">▼</span>
+        </button>
+        <div class="collapsible-content" id="p-${id}-content">
+          ${events.map(renderEvent).join('')}
+        </div>
+      </div>
+    `;
+  };
+
   let html = '';
-  if (moscowEvents.length) html += '<div class="events-section-title">فعاليات موسكو</div>' + moscowEvents.map(renderEvent).join('');
-  if (sochiEvents.length)  html += '<div class="events-section-title">فعاليات سوتشي</div>' + sochiEvents.map(renderEvent).join('');
-  if (murmanskEvents.length) html += '<div class="events-section-title">فعاليات مورمانسك</div>' + murmanskEvents.map(renderEvent).join('');
-  if (otherEvents.length)  html += '<div class="events-section-title">فعاليات أخرى</div>' + otherEvents.map(renderEvent).join('');
+  html += renderSection('فعاليات موسكو', 'moscow', moscowEvents);
+  html += renderSection('فعاليات سوتشي', 'sochi', sochiEvents);
+  html += renderSection('فعاليات مورمانسك', 'murmansk', murmanskEvents);
+  html += renderSection('فعاليات أخرى', 'other', otherEvents);
 
   $('#pEvents').innerHTML = html || '<p style="text-align:center;color:var(--gray);grid-column:1/-1;">لا توجد فعاليات متاحة.</p>';
+
+  // ✅ تفعيل أزرار Collapsible
+  $$('#pEvents .collapsible-header').forEach(header => {
+    header.onclick = () => {
+      const targetId = header.dataset.target;
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      target.classList.toggle('open');
+      header.classList.toggle('open');
+    };
+  });
 
   $$('.event-check input[type=checkbox]').forEach(cb => cb.onchange = () => {
     const label = cb.closest('.event-check');

@@ -67,11 +67,25 @@
     <div class="field" style="margin-top:26px"><label>اختر الفعاليات</label></div>
     <div class="checks" id="pEvents"></div>
 
-    <div class="field" style="margin-top:16px"><label>الجولات والتنقلات</label></div>
-    <div class="cards-grid" id="pTourPackages"></div>
+    <div class="collapsible-section" style="margin-top:26px;">
+      <button type="button" class="collapsible-header" data-target="pTourPackages-content">
+        <span>الجولات والتنقلات</span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="collapsible-content" id="pTourPackages-content">
+        <div class="cards-grid" id="pTourPackages"></div>
+      </div>
+    </div>
 
-    <div class="field" style="margin-top:16px"><label>الخدمات الإضافية</label></div>
-    <div class="cards-grid" id="pExtraServices"></div>
+    <div class="collapsible-section" style="margin-top:26px;">
+      <button type="button" class="collapsible-header" data-target="pExtraServices-content">
+        <span>الخدمات الإضافية</span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="collapsible-content" id="pExtraServices-content">
+        <div class="cards-grid" id="pExtraServices"></div>
+      </div>
+    </div>
 
     <div class="field" style="margin-top:16px">
       <label>اختر العملة (اختياري)</label>
@@ -142,14 +156,42 @@
 
 <section id="events" style="background:#fff">
   <div class="sec-head"><span class="tag">الفعاليات</span><h2>فعاليات في روسيا</h2><p>اكتشف الفعاليات في أشهر المدن الروسية.</p></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin-bottom:24px;font-weight:900;">فعاليات موسكو</h3>
-  <div class="grid g-3" id="eventsMoscow"></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">فعاليات سوتشي</h3>
-  <div class="grid g-3" id="eventsSochi"></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">فعاليات مورمانسك</h3>
-  <div class="grid g-3" id="eventsMurmansk"></div>
-  <h3 style="text-align:center;font-size:1.4rem;color:var(--navy);margin:50px 0 24px;font-weight:900;">فعاليات أخرى</h3>
-  <div class="grid g-3" id="eventsOther"></div>
+  <div class="collapsible-section">
+    <button class="collapsible-header" data-target="eventsMoscow-content">
+      <span>فعاليات موسكو</span>
+      <span class="arrow">▼</span>
+    </button>
+    <div class="collapsible-content" id="eventsMoscow-content">
+      <div class="grid g-3" id="eventsMoscow"></div>
+    </div>
+  </div>
+  <div class="collapsible-section">
+    <button class="collapsible-header" data-target="eventsSochi-content">
+      <span>فعاليات سوتشي</span>
+      <span class="arrow">▼</span>
+    </button>
+    <div class="collapsible-content" id="eventsSochi-content">
+      <div class="grid g-3" id="eventsSochi"></div>
+    </div>
+  </div>
+  <div class="collapsible-section">
+    <button class="collapsible-header" data-target="eventsMurmansk-content">
+      <span>فعاليات مورمانسك</span>
+      <span class="arrow">▼</span>
+    </button>
+    <div class="collapsible-content" id="eventsMurmansk-content">
+      <div class="grid g-3" id="eventsMurmansk"></div>
+    </div>
+  </div>
+  <div class="collapsible-section">
+    <button class="collapsible-header" data-target="eventsOther-content">
+      <span>فعاليات أخرى</span>
+      <span class="arrow">▼</span>
+    </button>
+    <div class="collapsible-content" id="eventsOther-content">
+      <div class="grid g-3" id="eventsOther"></div>
+    </div>
+  </div>
 </section>
 
 <section id="hotels">
@@ -323,6 +365,104 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {});
   });
 }
+</script>
+
+<style>
+/* ✅ إجبار الأزرار على أن تكون تحت بعضها */
+#pEvents {
+  display: block !important;
+  grid-template-columns: none !important;
+}
+#pEvents > .collapsible-section {
+  display: block !important;
+  width: 100% !important;
+  margin-bottom: 16px;
+}
+.collapsible-section {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  display: block !important;
+  width: 100% !important;
+}
+.collapsible-header {
+  width: 100%;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+  color: #fff;
+  border: none;
+  padding: 16px 24px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+}
+.collapsible-header:hover {
+  background: linear-gradient(135deg, #2c5282 0%, #1e3a5f 100%);
+}
+.collapsible-header .arrow {
+  font-size: 0.8rem;
+  transition: transform 0.3s;
+}
+.collapsible-header.open .arrow {
+  transform: rotate(180deg);
+}
+.collapsible-content {
+  display: none;
+  padding: 20px;
+  background: #fff;
+}
+/* ✅ عرض الفعاليات في شبكة 3 أعمدة داخل Collapsible */
+.collapsible-content.open {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 16px !important;
+}
+/* للجولات والخدمات — شبكة 3 أعمدة */
+#pTourPackages-content.open,
+#pExtraServices-content.open {
+  display: block !important;
+}
+#pTourPackages-content.open .cards-grid,
+#pExtraServices-content.open .cards-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 16px !important;
+}
+/* للأجهزة الصغيرة — عمودان أو عمود واحد */
+@media (max-width: 900px) {
+  .collapsible-content.open {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+@media (max-width: 600px) {
+  .collapsible-content.open {
+    grid-template-columns: 1fr !important;
+  }
+}
+.collapsible-content.open {
+  display: block;
+}
+</style>
+
+<script>
+// ✅ Collapsible Sections — يمكن فتح أكثر من قسم
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.collapsible-header').forEach(function(header) {
+    header.onclick = function() {
+      const targetId = header.dataset.target;
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      
+      // Toggle القسم
+      target.classList.toggle('open');
+      header.classList.toggle('open');
+    };
+  });
+});
 </script>
 </body>
 </html>
