@@ -2716,7 +2716,13 @@ function updateExtraTotal(card) {
     });
     
     console.log('📊 ترتيب المدن:', CITY_LIST.map(c => `${c} (${cityCount[c]})`));
-    $('#hotelsGrid').innerHTML = HOTELS.map(h => `
+    // ✅ تصنيف الفنادق حسب المدينة
+    const moscowHotels = HOTELS.filter(h => (h.city || '').trim() === 'موسكو');
+    const sochiHotels = HOTELS.filter(h => (h.city || '').trim() === 'سوتشي');
+    const spbHotels = HOTELS.filter(h => (h.city || '').trim() === 'سانت بطرسبرغ' || (h.city || '').trim() === 'سانت بطرسبورغ');
+    const otherHotels = HOTELS.filter(h => !['موسكو', 'سوتشي', 'سانت بطرسبرغ', 'سانت بطرسبورغ'].includes((h.city || '').trim()));
+    
+    const renderHotelCard = (h) => `
       <div class="card">
         <div class="card-img"><img src="${h.image || ''}" alt="${h.name}">
         ${h.breakfast ? '<span class="badge">إفطار مجاني</span>' : ''}</div>
@@ -2728,7 +2734,18 @@ function updateExtraTotal(card) {
             <button class="btn btn-navy" style="width:100%;" onclick="requestHotel(${h.id})">احسب السعر واحجز</button>
           </div>
         </div>
-      </div>`).join('');
+      </div>`;
+    
+    // ✅ توزيع الفنادق في الأقسام
+    const moscowEl = document.getElementById('hotelsMoscow');
+    const sochiEl = document.getElementById('hotelsSochi');
+    const spbEl = document.getElementById('hotelsSpb');
+    const otherEl = document.getElementById('hotelsOther');
+    
+    if (moscowEl) moscowEl.innerHTML = moscowHotels.map(renderHotelCard).join('');
+    if (sochiEl) sochiEl.innerHTML = sochiHotels.map(renderHotelCard).join('');
+    if (spbEl) spbEl.innerHTML = spbHotels.map(renderHotelCard).join('');
+    if (otherEl) otherEl.innerHTML = otherHotels.map(renderHotelCard).join('');
 
     await Promise.all([loadServices(), loadDestinations(), loadEvents(), loadRestaurants(), loadUniversities(), loadAds(), loadMedical(), loadScholarships(), loadTourPackages(), loadExtraServices()]);
     fillPlanner();
