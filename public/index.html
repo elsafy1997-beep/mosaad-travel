@@ -460,16 +460,23 @@ if ('serviceWorker' in navigator) {
   grid-template-columns: repeat(3, 1fr) !important;
   gap: 16px !important;
 }
-/* للجولات والخدمات — شبكة 3 أعمدة */
+/* للجولات والخدمات — تنسيق موحد مع الفعاليات */
 #pTourPackages-content.open,
 #pExtraServices-content.open {
   display: block !important;
+  width: 100% !important;
 }
 #pTourPackages-content.open .cards-grid,
 #pExtraServices-content.open .cards-grid {
   display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
   gap: 16px !important;
+}
+@media (max-width: 600px) {
+  #pTourPackages-content.open .cards-grid,
+  #pExtraServices-content.open .cards-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 /* للأجهزة الصغيرة — عمودان أو عمود واحد */
 @media (max-width: 900px) {
