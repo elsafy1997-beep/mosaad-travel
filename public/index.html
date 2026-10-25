@@ -484,9 +484,22 @@ if ('serviceWorker' in navigator) {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+  /* إجبار أقسام الفعاليات على العرض بعمود واحد على الجوال */
+  #eventsMoscow-content.open,
+  #eventsSochi-content.open,
+  #eventsMurmansk-content.open,
+  #eventsOther-content.open,
   .collapsible-content.open {
+    display: block !important;
+    width: 100% !important;
+  }
+  
+  /* إجبار الشبكة داخل الفعاليات على أن تكون عموداً واحداً */
+  .collapsible-content.open .grid.g-3 {
+    display: grid !important;
     grid-template-columns: 1fr !important;
+    gap: 16px !important;
   }
 }
 .collapsible-content.open {
