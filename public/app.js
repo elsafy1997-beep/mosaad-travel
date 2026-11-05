@@ -1546,7 +1546,30 @@ function calculate() {
     return;
   }
   res.classList.add('show');
+  // ✅ التحقق من وجود غرف بدون سعر (سعر 0)
+  let hasZeroPriceHotel = false;
+  hotelSegments.forEach(seg => {
+    if (seg._bookingRooms) {
+      seg._bookingRooms.forEach(rd => {
+        if (!rd.error && rd.subtotal === 0) {
+          hasZeroPriceHotel = true;
+        }
+      });
+    }
+  });
+
+  let zeroPriceWarning = '';
+  if (hasZeroPriceHotel) {
+    zeroPriceWarning = `
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-bottom:12px;color:#92400e;font-size:0.9rem;font-weight:700;">
+        ⚠️ تنبيه: بعض الغرف التي اخترتها تتطلب طلباً خاصاً من الفندق.<br>
+        يرجى إكمال بياناتك وإرسال الطلب على الواتساب، وسنقوم بإبلاغك بسعر الغرفة فور تأكيده من الفندق.
+      </div>
+    `;
+  }
+
   res.innerHTML = `
+    ${zeroPriceWarning}
     <div class="row"><span>الفنادق (${hotelSegments.length} فندق)</span><span>${fmtWithCurrency(hotelsTotal, currency)}</span></div>
     <div class="row"><span>الجولات والتنقلات</span><span>${fmtWithCurrency(tourPackagesTotal, currency)}</span></div>
     <div class="row"><span>الفعاليات</span><span>${fmtWithCurrency(eventsTotal, currency)}</span></div>

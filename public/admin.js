@@ -610,11 +610,8 @@ async function openRoomPricesModal(hotel, roomType) {
     const price_single = +fd.get('price_single') || 0;
     const price_double = +fd.get('price_double') || 0;
     
-    // ✅ التحقق من وجود سعر واحد على الأقل
-    if (!price_single && !price_double) {
-      toast('يجب إدخال سعر فردي أو مزدوج على الأقل', 'err');
-      return;
-    }
+    // ✅ السماح بحفظ السعر 0 (سيتم التعامل معه في الواجهة)
+    // تم إزالة شرط منع الحفظ ليتيح إضافة غرف "حسب الطلب" 
     
     // ✅ جمع كل الفترات
     const periods = [];
