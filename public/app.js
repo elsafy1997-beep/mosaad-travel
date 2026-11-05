@@ -1620,7 +1620,8 @@ $('#pSubmit').onclick = async () => {
       if (rd.error) {
         // غرفة بدون أسعار
         hotelLines.push('  الغرفة ' + rd.room + ':');
-        hotelLines.push('    - التواريخ المطلوبة غير مسجلة في المنصه');
+        hotelLines.push('    - ⚠️ هذا النوع من الغرف يتطلب إرسال طلب للفندق');
+        hotelLines.push('    - يرجى إكمال حساب الباكج ثم إرساله لنا على الواتساب وسوف نخبرك بسعر الغرفة');
         hotelLines.push('');
       } else {
         // غرفة بها سعر
