@@ -1208,7 +1208,7 @@ async function recalcBooking(seg) {
           breakdownEl.innerHTML = '<div style="text-align:center;padding:16px 12px;background:#fef2f2;border:1px solid #dc2626;border-radius:10px;"><div style="font-weight:700;color:#991b1b;font-size:.95rem;margin-bottom:8px;">تركيبة الإشغال غير متاحة</div><div style="font-size:.85rem;color:#7f1d1d;line-height:1.6;">' + errorMsg + '</div></div>';
         } else {
           // ✅ خطأ في الأسعار
-          breakdownEl.innerHTML = '<div style="text-align:center;padding:16px 12px;background:#fffbeb;border:1px solid #fbbf24;border-radius:10px;"><div style="font-weight:700;color:#92400e;font-size:.95rem;margin-bottom:8px;">التواريخ المطلوبة غير مسجّلة حالياً</div><div style="font-size:.85rem;color:#78350f;line-height:1.6;">الرجاء التواصل معنا عبر واتساب لمعرفة السعر المتاح لهذه الفترة.</div></div>';
+          breakdownEl.innerHTML = '<div style="text-align:center;padding:16px 12px;background:#fffbeb;border:1px solid #fbbf24;border-radius:10px;"><div style="font-weight:700;color:#92400e;font-size:.95rem;margin-bottom:8px;">⚠️ هذا النوع من الغرف يتطلب إرسال طلب للفندق</div><div style="font-size:.85rem;color:#78350f;line-height:1.6;">يرجى إكمال حساب الباكج ثم إرساله لنا على الواتساب، وسوف نخبرك بسعر الغرفة.</div></div>';
         }
       } else if (validRooms.length === 0) {
         breakdownEl.style.display = 'none';
@@ -1250,7 +1250,7 @@ async function recalcBooking(seg) {
             // 🆕 غرفة بدون أسعار → رسالة ودية
             html += '<div style="padding:12px;margin-bottom:8px;background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;">';
             html += '<div style="font-weight:700;color:#92400e;font-size:.9rem;margin-bottom:6px;">الغرفة ' + rd.room + '</div>';
-            html += '<div style="font-weight:700;color:#92400e;font-size:.85rem;margin-bottom:4px;">التواريخ المطلوبة غير مسجّلة حالياً</div>';
+            html += '<div style="font-weight:700;color:#92400e;font-size:.85rem;margin-bottom:4px;">⚠️ يتطلب طلب من الفندق</div>';
             html += '<div style="font-size:.8rem;color:#78350f;line-height:1.5;">الرجاء التواصل معنا عبر واتساب لمعرفة السعر المتاح لهذه الفترة.</div>';
             html += '</div>';
           } else {
