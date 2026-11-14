@@ -1711,6 +1711,7 @@ $('#pSubmit').onclick = async () => {
     const eventsByCity = {};
     selectedEvents.forEach(e => {
       const city = e.city || 'أخرى';
+      if (eventsByCity[city] === undefined) eventsByCity[city] = [];
       eventsByCity[city].push(e);
     });
     Object.keys(eventsByCity).forEach(city => {
