@@ -1685,7 +1685,6 @@ $('#pSubmit').onclick = async () => {
   const lines = [];
   lines.push('عدد الأشخاص: ' + persons);
 
-  // إضافة التواريخ
   const globalArrival = $('#pArrival').value;
   const globalDeparture = $('#pDeparture').value;
   if (globalArrival && globalDeparture) {
@@ -1730,7 +1729,6 @@ $('#pSubmit').onclick = async () => {
     lines.push('');
   }
   
-  // الإجمالي فقط
   lines.push('- الإجمالي: ' + calc.total.toLocaleString('ar-EG') + ' RUB');
   if (currency && currency !== 'RUB') {
     const conv = convertFromRub(calc.total, currency);
