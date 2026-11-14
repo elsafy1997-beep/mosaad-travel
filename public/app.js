@@ -1637,13 +1637,13 @@ $('#pSubmit').onclick = async () => {
         if (rd.mealPlanName) {
           hotelLines.push('    - الوجبات: ' + rd.mealPlanName);
         }
-        hotelLines.push('    - سعر الغرفة: ' + rd.subtotal.toLocaleString('ar-EG') + ' RUB');
+        // (تم حذف سطر سعر الغرفة)
         hotelLines.push('');
       }
     });
 
     if (roomsTotal > 0) {
-      hotelLines.push('  مجموع الفندق: ' + roomsTotal.toLocaleString('ar-EG') + ' RUB');
+      // (تم حذف سطر مجموع الفندق)
     }
     hotelLines.push('');
   });
