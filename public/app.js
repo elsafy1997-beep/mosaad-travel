@@ -1683,8 +1683,7 @@ $('#pSubmit').onclick = async () => {
   });
 
   const lines = [];
-  lines.push('السلام عليكم، أريد تجهيز رحلة إلى روسيا عبر مُساعد.');
-  lines.push('');
+  // (تم حذف سطر الترحيب)
   lines.push('عدد الأشخاص: ' + persons);
 
   // ✅ إضافة التواريخ العامة والمدة
@@ -1723,9 +1722,9 @@ $('#pSubmit').onclick = async () => {
     lines.push('الجولات والتنقلات:');
     selectedTours.forEach(t => {
       if (t.unit === 'order') {
-        lines.push('- ' + t.name + ' (' + t.unitLabel + ') - ' + t.price.toLocaleString('ar-EG') + ' RUB');
+        lines.push('- ' + t.name + ' (' + t.unitLabel + ')');
       } else {
-        lines.push('- ' + t.name + ' (' + t.count + ' ' + t.unitLabel + ' × ' + t.price.toLocaleString('ar-EG') + ') - ' + t.total.toLocaleString('ar-EG') + ' RUB');
+        lines.push('- ' + t.name + ' (' + t.count + ' ' + t.unitLabel + ')');
       }
     });
     lines.push('');
@@ -1742,7 +1741,7 @@ $('#pSubmit').onclick = async () => {
     Object.keys(eventsByCity).forEach(city => {
       lines.push('فعاليات ' + city + ':');
       eventsByCity[city].forEach(e => {
-        lines.push('- ' + e.name + ' (' + e.tickets + ' تذكرة) - ' + e.total.toLocaleString('ar-EG') + ' RUB');
+        lines.push('- ' + e.name + ' (' + e.tickets + ' تذكرة)');
       });
       lines.push('');
     });
@@ -1751,25 +1750,20 @@ $('#pSubmit').onclick = async () => {
     lines.push('الخدمات الإضافية:');
     services.forEach(s => {
       if (s.hasQty && s.qty > 1) {
-        lines.push('- ' + s.name + ' (' + s.qty + ' × ' + s.price.toLocaleString('ar-EG') + ') - ' + s.total.toLocaleString('ar-EG') + ' RUB');
+        lines.push('- ' + s.name + ' (' + s.qty + ')');
       } else {
-        lines.push('- ' + s.name + ' - ' + s.total.toLocaleString('ar-EG') + ' RUB');
+        lines.push('- ' + s.name);
       }
     });
     lines.push('');
   }
-  lines.push('الإجمالي التقديري:');
-  lines.push('- الفنادق: ' + calc.hotelsTotal.toLocaleString('ar-EG') + ' RUB');
-  lines.push('- الجولات والتنقلات: ' + calc.tourPackagesTotal.toLocaleString('ar-EG') + ' RUB');
-  lines.push('- الفعاليات: ' + calc.eventsTotal.toLocaleString('ar-EG') + ' RUB');
-  lines.push('- الخدمات: ' + calc.servicesTotal.toLocaleString('ar-EG') + ' RUB');
+  // ✅ الإجمالي فقط
   lines.push('- الإجمالي: ' + calc.total.toLocaleString('ar-EG') + ' RUB');
   if (currency && currency !== 'RUB') {
     const conv = convertFromRub(calc.total, currency);
     if (conv !== null) lines.push('ما يعادل: ' + fmtCurrency(conv, currency));
   }
-  lines.push('');
-  lines.push('أرجو تأكيد التوفر والسعر النهائي.');
+  // (تم حذف سطر "أرجو تأكيد التوفر")
 
   const message = lines.join('\n');
 
