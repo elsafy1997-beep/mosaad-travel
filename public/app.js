@@ -1683,33 +1683,15 @@ $('#pSubmit').onclick = async () => {
   });
 
   const lines = [];
-  // (تم حذف سطر الترحيب)
   lines.push('عدد الأشخاص: ' + persons);
 
-  // ✅ إضافة التواريخ العامة والمدة
+  // إضافة التواريخ
   const globalArrival = $('#pArrival').value;
   const globalDeparture = $('#pDeparture').value;
-
   if (globalArrival && globalDeparture) {
-    const startDate = new Date(globalArrival + 'T00:00:00');
-    const endDate = new Date(globalDeparture + 'T00:00:00');
-    const diffDays = Math.round((endDate - startDate) / 86400000);
-
-    if (diffDays > 0) {
-      const days = diffDays + 1;
-      const nightsText = diffDays === 1 ? 'ليلة واحدة' : diffDays === 2 ? 'ليلتان' : diffDays + ' ليال';
-      const daysText = days === 1 ? 'يوم واحد' : days === 2 ? 'يومان' : days + ' أيام';
-
-      // تنسيق التواريخ لـ DD.MM.YYYY
-      const fmtDate = (isoDate) => {
-        const [y, m, d] = isoDate.split('-');
-        return d + '.' + m + '.' + y;
-      };
-
-      lines.push('تاريخ الوصول: ' + fmtDate(globalArrival));
-      lines.push('تاريخ المغادرة: ' + fmtDate(globalDeparture));
-      lines.push('مدة الرحلة: ' + daysText + ' (' + nightsText + ')');
-    }
+    const fmtDate = (d) => { const [y,m,dd] = d.split('-'); return dd + '.' + m + '.' + y; };
+    lines.push('تاريخ الوصول: ' + fmtDate(globalArrival));
+    lines.push('تاريخ المغادرة: ' + fmtDate(globalDeparture));
   }
 
   lines.push('');
@@ -1721,23 +1703,16 @@ $('#pSubmit').onclick = async () => {
   if (selectedTours.length) {
     lines.push('الجولات والتنقلات:');
     selectedTours.forEach(t => {
-      if (t.unit === 'order') {
-        lines.push('- ' + t.name + ' (' + t.unitLabel + ')');
-      } else {
-        lines.push('- ' + t.name + ' (' + t.count + ' ' + t.unitLabel + ')');
-      }
+      lines.push('- ' + t.name + ' (' + t.count + ' ' + (t.unitLabel || '') + ')');
     });
     lines.push('');
   }
   if (selectedEvents.length) {
-    // Group events by city
     const eventsByCity = {};
     selectedEvents.forEach(e => {
       const city = e.city || 'أخرى';
-      if (!eventsByCity[city]) eventsByCity[city] = [];
       eventsByCity[city].push(e);
     });
-    // Output grouped
     Object.keys(eventsByCity).forEach(city => {
       lines.push('فعاليات ' + city + ':');
       eventsByCity[city].forEach(e => {
@@ -1749,22 +1724,17 @@ $('#pSubmit').onclick = async () => {
   if (services.length) {
     lines.push('الخدمات الإضافية:');
     services.forEach(s => {
-      if (s.hasQty && s.qty > 1) {
-        lines.push('- ' + s.name + ' (' + s.qty + ')');
-      } else {
-        lines.push('- ' + s.name);
-      }
+      lines.push('- ' + s.name + (s.qty > 1 ? ' (' + s.qty + ')' : ''));
     });
     lines.push('');
   }
-  // ✅ الإجمالي فقط
+  
+  // الإجمالي فقط
   lines.push('- الإجمالي: ' + calc.total.toLocaleString('ar-EG') + ' RUB');
   if (currency && currency !== 'RUB') {
     const conv = convertFromRub(calc.total, currency);
     if (conv !== null) lines.push('ما يعادل: ' + fmtCurrency(conv, currency));
   }
-  // (تم حذف سطر "أرجو تأكيد التوفر")
-
   const message = lines.join('\n');
 
   const payload = {
