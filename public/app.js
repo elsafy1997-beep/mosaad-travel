@@ -1735,6 +1735,7 @@ $('#pSubmit').onclick = async () => {
     const conv = convertFromRub(calc.total, currency);
     if (conv !== null) lines.push('ما يعادل: ' + fmtCurrency(conv, currency));
   }
+
   const message = lines.join('\n');
 
   const payload = {
@@ -2268,7 +2269,7 @@ window.submitTripPlan = async function() {
 
     // Build WhatsApp message
     const lines = [];
-    lines.push('السلام عليكم، هذا جدول رحلتي عبر مُساعد.');
+    
     lines.push('');
     lines.push('رقم الجدول: ' + r.code);
     lines.push('الاسم: ' + name);
@@ -2295,7 +2296,7 @@ window.submitTripPlan = async function() {
       lines.push('ملاحظات: ' + notes);
       lines.push('');
     }
-    lines.push('أرجو تأكيد التوفر والترتيب.');
+    
 
     const message = lines.join('\n');
 
