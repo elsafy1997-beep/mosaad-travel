@@ -515,6 +515,46 @@ function initSegPickers() {
 }
 
 // ✅ تعيين التاريخين معاً ثم تمرير التحديث بنفس منطق الحقول القديمة
+// ✅ التقويم العام في أعلى الحاسبة (يملأ حقلي #pArrival و #pDeparture المخفيين)
+let globalDatesPicker = null;
+function initGlobalDatesPicker() {
+  if (!HAS_RANGE_PICKER()) return; // يبقى الحقلان القديمان
+  const input = document.getElementById('pDates');
+  const arr = document.getElementById('pArrival');
+  const dep = document.getElementById('pDeparture');
+  if (!input || !arr || !dep) return;
+  document.getElementById('pDatesField').style.display = '';
+  document.getElementById('pArrivalField').style.display = 'none';
+  document.getElementById('pDepartureField').style.display = 'none';
+  const hint = document.getElementById('pDatesHint');
+  if (globalDatesPicker) { try { globalDatesPicker.destroy(); } catch (e) {} }
+  globalDatesPicker = flatpickr(input, {
+    mode: 'range',
+    locale: (flatpickr.l10ns && flatpickr.l10ns.ar) ? 'ar' : 'default',
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'j F Y',
+    minDate: 'today',
+    showMonths: window.innerWidth < 700 ? 1 : 2,
+    disableMobile: true,
+    position: 'auto center',
+    defaultDate: (arr.value && dep.value) ? [arr.value, dep.value] : null,
+    onClose: (selectedDates, _str, instance) => {
+      if (selectedDates.length !== 2) {
+        instance.setDate((arr.value && dep.value) ? [arr.value, dep.value] : [], false);
+        return;
+      }
+      const from = toLocalYMD(selectedDates[0]);
+      const to = toLocalYMD(selectedDates[1]);
+      if (from === to) { toast('اختر يوم مغادرة بعد يوم الوصول', 'err'); return; }
+      arr.value = from;
+      dep.value = to;
+      if (hint) hint.textContent = nightsLabel(from, to);
+      calculate();
+    }
+  });
+}
+
 function setSegmentDates(segId, from, to) {
   const seg = hotelSegments.find(s => s.id === segId);
   if (!seg) return;
@@ -1200,6 +1240,9 @@ async function recalcBooking(seg) {
       if (childrenAges.length > expectedChildrenCount) {
         childrenAges = childrenAges.slice(0, expectedChildrenCount);
       }
+      // ✅ نسخة من الأعمار كما أدخلها العميل — للعرض في الواتساب ولوحة التحكم
+      // (childrenAges قد تُفرَّغ بالأسفل إذا لم توجد سياسة أطفال، لكن العميل لديه أطفال فعلاً)
+      const enteredAges = childrenAges.slice();
       const mealPlanId = roomData.mealPlanId;
 
       // ✅ التحقق من إدخال عدد البالغين (قبل أي استدعاء API)
@@ -1316,6 +1359,8 @@ async function recalcBooking(seg) {
           roomTypeName: result.room_type_name,
           adults: adults,
           childrenAges: childrenAges,
+          enteredAges: enteredAges,
+          childrenCount: expectedChildrenCount,
           childBedTypes: childBedTypes,
           mealPlanId: mealPlanId,
           mealPlanName: result.meal_plan ? result.meal_plan.name : null,
@@ -1332,6 +1377,8 @@ async function recalcBooking(seg) {
           roomTypeId: roomTypeId,
           adults: adults,
           childrenAges: childrenAges,
+          enteredAges: enteredAges,
+          childrenCount: expectedChildrenCount,
           mealPlanId: mealPlanId
         });
       }
@@ -1485,6 +1532,7 @@ function refreshSegmentsUI() {
 /* ============ PLANNER ============ */
 function fillPlanner() {
   renderExtraServices();
+  initGlobalDatesPicker();
 
   const moscowEvents = EVENTS.filter(e => (e.city || '').trim() === 'موسكو');
   const sochiEvents  = EVENTS.filter(e => (e.city || '').trim() === 'سوتشي');
@@ -1762,6 +1810,17 @@ $('#pSubmit').onclick = async () => {
     }
   }
 
+  // ✅ عدد الأشخاص يكتبه العميل بنفسه (الخانة فارغة افتراضياً)
+  if (!(+$('#pPersons').value >= 1)) {
+    toast('اكتب عدد الأشخاص أولاً', 'err');
+    const pp = $('#pPersons');
+    pp.style.borderColor = '#dc2626';
+    pp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pp.focus();
+    pp.addEventListener('input', () => { pp.style.borderColor = ''; }, { once: true });
+    return;
+  }
+
   const calc = calculate(); if (!calc) return;
 
   // اسم نوع الغرفة / الوجبة كما يظهر للعميل (للغرف التي لم يرجع لها سعر)
@@ -1774,6 +1833,13 @@ $('#pSubmit').onclick = async () => {
   const mealText = (segId, room) => selectedText('.seg-meal-plan[data-seg-id="' + segId + '"][data-room="' + room + '"]')
     .replace(/\s*\([^)]*RUB[^)]*\)\s*$/, '');
   let hasRequestRooms = false;
+  // ✅ سطر الأطفال من الأعمار التي أدخلها العميل (حتى لو لم توجد سياسة أطفال للفندق)
+  const childrenLine = (rd) => {
+    const ages = (rd.enteredAges && rd.enteredAges.length) ? rd.enteredAges : (rd.childrenAges || []);
+    const count = Math.max(+rd.childrenCount || 0, ages.length);
+    if (!count) return '    - الأطفال: 0';
+    return '    - الأطفال: ' + count + (ages.length ? ' (أعمار: ' + ages.join(', ') + ')' : ' (لم تُحدَّد الأعمار)');
+  };
   const persons = +$('#pPersons').value;
   const currency = $('#pCurrency').value;
 
@@ -1819,9 +1885,7 @@ $('#pSubmit').onclick = async () => {
         hotelLines.push('  الغرفة ' + rd.room + ':');
         hotelLines.push('    - نوع الغرفة: ' + typeName);
         if (rd.adults) hotelLines.push('    - البالغين: ' + rd.adults);
-        if (rd.childrenAges && rd.childrenAges.length) {
-          hotelLines.push('    - الأطفال: ' + rd.childrenAges.length + ' (أعمار: ' + rd.childrenAges.join(', ') + ')');
-        }
+        hotelLines.push(childrenLine(rd));
         if (mealName) hotelLines.push('    - الوجبات: ' + mealName);
         hotelLines.push('    - السعر: بانتظار تأكيد الفندق');
         hotelLines.push('');
@@ -1831,11 +1895,7 @@ $('#pSubmit').onclick = async () => {
         hotelLines.push('  الغرفة ' + rd.room + ':');
         hotelLines.push('    - نوع الغرفة: ' + (rd.roomTypeName || '-'));
         hotelLines.push('    - البالغين: ' + rd.adults);
-        if (rd.childrenAges && rd.childrenAges.length) {
-          hotelLines.push('    - الأطفال: ' + rd.childrenAges.length + ' (أعمار: ' + rd.childrenAges.join(', ') + ')');
-        } else {
-          hotelLines.push('    - الأطفال: 0');
-        }
+        hotelLines.push(childrenLine(rd));
         if (rd.mealPlanName) {
           hotelLines.push('    - الوجبات: ' + rd.mealPlanName);
         }
@@ -1957,7 +2017,8 @@ $('#pSubmit').onclick = async () => {
     services,
     estimated_rub: calc.total,
     currency,
-    notes: 'عدد الفنادق: ' + hotelSegments.length
+    // ✅ نحفظ تفاصيل الطلب كاملة (الغرف، الأطفال وأعمارهم، الجولات...) لتظهر في لوحة التحكم
+    notes: message
   };
   try {
     // حفظ الـ lead

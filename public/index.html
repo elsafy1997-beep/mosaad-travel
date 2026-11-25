@@ -58,9 +58,16 @@
   <div class="sec-head"><span class="tag">مخطط الرحلة</span><h2>احسب تكلفة رحلتك</h2><p>أضف فنادق متعددة في مدن مختلفة حسب خط سير رحلتك.</p></div>
   <div class="planner-box">
     <div class="steps">
-      <div class="field"><label>عدد الأشخاص</label><input type="number" id="pPersons" min="1" value="2"></div>
-      <div class="field"><label>تاريخ الوصول العام</label><input type="date" id="pArrival"></div>
-      <div class="field"><label>تاريخ المغادرة العام</label><input type="date" id="pDeparture"></div>
+      <div class="field"><label>عدد الأشخاص</label><input type="number" id="pPersons" min="1" placeholder="اكتب عدد الأشخاص"></div>
+      <!-- 📅 تقويم واحد للوصول والمغادرة العام (يظهر إذا تحمّلت مكتبة التقويم) -->
+      <div class="field p-dates-wide" id="pDatesField" style="display:none;">
+        <label>تاريخ الوصول والمغادرة العام</label>
+        <input type="text" id="pDates" class="seg-dates" placeholder="اضغط لاختيار تاريخ الوصول ثم المغادرة" readonly>
+        <small id="pDatesHint" class="seg-dates-hint" style="color:var(--gray);font-size:.8rem;">اختر يوم الوصول ثم يوم المغادرة من التقويم</small>
+      </div>
+      <!-- الحقلان القديمان: يُخفيان عند عمل التقويم، ويبقيان كاحتياط إذا لم يتحمّل -->
+      <div class="field" id="pArrivalField"><label>تاريخ الوصول العام</label><input type="date" id="pArrival"></div>
+      <div class="field" id="pDepartureField"><label>تاريخ المغادرة العام</label><input type="date" id="pDeparture"></div>
     </div>
 
     <h3 style="margin:26px 0 14px;font-size:1.15rem;color:var(--navy);font-weight:900;">الفنادق</h3>

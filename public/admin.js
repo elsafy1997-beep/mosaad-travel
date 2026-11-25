@@ -486,7 +486,24 @@ function openRoomTypeForm(hotel, row, onDone) {
   };
 }
 
+/* ===== 📅 تقويم الفترات (نفس تقويم المنصة) ===== */
+let ADMIN_PERIOD_PICKERS = [];
+function destroyAdminPeriodPickers() {
+  ADMIN_PERIOD_PICKERS.forEach(p => { try { p.destroy(); } catch (e) {} });
+  ADMIN_PERIOD_PICKERS = [];
+}
+// YYYY-MM-DD بالتوقيت المحلي (toISOString كانت ترجع اليوم السابق في روسيا/مصر)
+function adminYMD(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function adminNextDay(ymd) {
+  const d = new Date(ymd + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  return adminYMD(d);
+}
+
 async function openRoomPricesModal(hotel, roomType) {
+  destroyAdminPeriodPickers();
   $('#modalContent').innerHTML = `
     <h2>أسعار: ${roomType.name}</h2>
     <p style="color:var(--gray);font-size:.9rem;margin-bottom:16px;">${hotel.name}</p>
@@ -518,19 +535,74 @@ async function openRoomPricesModal(hotel, roomType) {
     </div>`;
 
   // ✅ دالة لإضافة صف فترة جديد
-  const addPeriodRow = (dateFrom = '', dateTo = '') => {
+  // اليوم التالي لآخر فترة محفوظة (يُحدَّث بعد تحميل الأسعار)
+  let savedNextStart = '';
+  const addPeriodRow = (dateFrom = '', dateTo = '', startView = '') => {
     const container = $('#pricePeriodsList');
     if (!container) return;
     const row = document.createElement('div');
     row.className = 'period-row';
-    row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;background:#fff;padding:10px;border-radius:8px;border:1px solid #e5e7eb;';
+
+    // احتياط: إذا لم تتحمّل مكتبة التقويم نرجع لحقلي التاريخ العاديين
+    if (typeof window.flatpickr !== 'function') {
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;background:#fff;padding:10px;border-radius:8px;border:1px solid #e5e7eb;';
+      row.innerHTML = `
+        <div class="field"><label style="font-size:.8rem;">من تاريخ</label><input type="date" class="period-from" value="${dateFrom}"></div>
+        <div class="field"><label style="font-size:.8rem;">إلى تاريخ</label><input type="date" class="period-to" value="${dateTo}"></div>
+        <button type="button" class="icon-btn del remove-period" style="height:42px;">🗑️</button>
+      `;
+      container.appendChild(row);
+      row.querySelector('.remove-period').onclick = () => row.remove();
+      return;
+    }
+
+    row.style.cssText = 'display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;background:#fff;padding:10px;border-radius:8px;border:1px solid #e5e7eb;';
     row.innerHTML = `
-      <div class="field"><label style="font-size:.8rem;">من تاريخ</label><input type="date" class="period-from" value="${dateFrom}"></div>
-      <div class="field"><label style="font-size:.8rem;">إلى تاريخ</label><input type="date" class="period-to" value="${dateTo}"></div>
+      <div class="field">
+        <label style="font-size:.8rem;">الفترة (اضغط يوم البداية ثم يوم النهاية)</label>
+        <input type="text" class="period-range" placeholder="📅 اختر الفترة من التقويم" readonly>
+        <input type="hidden" class="period-from" value="${dateFrom}">
+        <input type="hidden" class="period-to" value="${dateTo}">
+      </div>
       <button type="button" class="icon-btn del remove-period" style="height:42px;">🗑️</button>
     `;
     container.appendChild(row);
-    row.querySelector('.remove-period').onclick = () => row.remove();
+
+    const fromEl = row.querySelector('.period-from');
+    const toEl = row.querySelector('.period-to');
+    const picker = flatpickr(row.querySelector('.period-range'), {
+      mode: 'range',
+      locale: (flatpickr.l10ns && flatpickr.l10ns.ar) ? 'ar' : 'default',
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'j F Y',
+      showMonths: window.innerWidth < 700 ? 1 : 2,
+      disableMobile: true,
+      defaultDate: (dateFrom && dateTo) ? [dateFrom, dateTo] : null,
+      onOpen: (_d, _s, inst) => {
+        // ⏩ الفترة الجديدة تبدأ من اليوم التالي لنهاية الفترة السابقة
+        const target = startView || savedNextStart;
+        if (!fromEl.value && target) inst.jumpToDate(target);
+      },
+      onClose: (selectedDates, _str, inst) => {
+        if (selectedDates.length !== 2) {
+          inst.setDate((fromEl.value && toEl.value) ? [fromEl.value, toEl.value] : [], false);
+          return;
+        }
+        fromEl.value = adminYMD(selectedDates[0]);
+        toEl.value = adminYMD(selectedDates[1]);
+        // ➕ إذا كان هذا آخر صف، أضف صفاً جديداً فارغاً تلقائياً
+        const rows = $$('.period-row');
+        if (rows[rows.length - 1] === row) addPeriodRow('', '', adminNextDay(toEl.value));
+      }
+    });
+    ADMIN_PERIOD_PICKERS.push(picker);
+    row.querySelector('.remove-period').onclick = () => {
+      try { picker.destroy(); } catch (e) {}
+      ADMIN_PERIOD_PICKERS = ADMIN_PERIOD_PICKERS.filter(p => p !== picker);
+      row.remove();
+      if (!$$('.period-row').length) addPeriodRow();
+    };
   };
 
   // ✅ إضافة صف واحد افتراضياً
@@ -541,13 +613,17 @@ async function openRoomPricesModal(hotel, roomType) {
   if (addBtn) {
     addBtn.onclick = (e) => {
       e.preventDefault();
-      addPeriodRow();
+      // ابدأ من اليوم التالي لآخر فترة مكتوبة في الصفوف
+      const ends = $$('.period-row .period-to').map(i => i.value).filter(Boolean).sort();
+      addPeriodRow('', '', ends.length ? adminNextDay(ends[ends.length - 1]) : '');
     };
   }
 
   const loadPrices = async () => {
     try {
       const list = await api('/api/admin/room-types/' + roomType.id + '/prices');
+      const lastSavedEnd = list.map(p => p.date_to).filter(Boolean).sort().pop();
+      savedNextStart = lastSavedEnd ? adminNextDay(lastSavedEnd) : '';
       if (!list.length) {
         $('#roomPricesList').innerHTML = '<p style="text-align:center;color:var(--gray);padding:14px;">لا توجد فترات أسعار بعد.</p>';
         return;
@@ -658,6 +734,7 @@ async function openRoomPricesModal(hotel, roomType) {
       toast(`✅ تم حفظ ${saved} فترة${failed ? ` (فشل ${failed})` : ''}`, 'ok');
       loadPrices();
       // تنظيف النموذج
+      destroyAdminPeriodPickers();
       $$('.period-row').forEach(r => r.remove());
       addPeriodRow();
     } else {
@@ -1364,7 +1441,7 @@ async function renderLeads() {
         <div><strong>العملة:</strong> ${esc(l.currency || 'RUB')}</div>
         <div><strong>الحالة:</strong> ${statusLabel(l.status)}</div>
         <div><strong>الخدمات:</strong> ${services.length ? services.map(s => '• ' + esc(s.name)).join('<br>') : '—'}</div>
-        <div><strong>ملاحظات:</strong> ${esc(l.notes || '—')}</div>
+        <div><strong>تفاصيل الطلب:</strong><div style="white-space:pre-line;background:#f8fafc;padding:10px 12px;border-radius:8px;margin-top:6px;font-size:.88rem;line-height:1.7;max-height:45vh;overflow-y:auto;">${esc(l.notes || '—')}</div></div>
         <div><strong>التاريخ:</strong> ${esc(l.created_at)}</div>
       </div>
       <div class="modal-actions"><button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button></div>`;
