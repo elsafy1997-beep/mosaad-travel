@@ -1361,6 +1361,7 @@ async function recalcBooking(seg) {
           childrenAges: childrenAges,
           enteredAges: enteredAges,
           childrenCount: expectedChildrenCount,
+          enteredBedTypes: (roomData.childBedTypes || []).slice(0, expectedChildrenCount),
           childBedTypes: childBedTypes,
           mealPlanId: mealPlanId,
           mealPlanName: result.meal_plan ? result.meal_plan.name : null,
@@ -1379,6 +1380,7 @@ async function recalcBooking(seg) {
           childrenAges: childrenAges,
           enteredAges: enteredAges,
           childrenCount: expectedChildrenCount,
+          enteredBedTypes: (roomData.childBedTypes || []).slice(0, expectedChildrenCount),
           mealPlanId: mealPlanId
         });
       }
@@ -1834,11 +1836,28 @@ $('#pSubmit').onclick = async () => {
     .replace(/\s*\([^)]*RUB[^)]*\)\s*$/, '');
   let hasRequestRooms = false;
   // ✅ سطر الأطفال من الأعمار التي أدخلها العميل (حتى لو لم توجد سياسة أطفال للفندق)
-  const childrenLine = (rd) => {
+  // ✅ ومعه نوع السرير الذي اختاره العميل لكل طفل
+  const BED_LABELS = { base: 'سرير أساسي', extra: 'سرير إضافي', child: 'سرير أطفال', baby: 'سرير أطفال' };
+  const ageText = (a) => {
+    a = +a;
+    if (a === 0) return 'أقل من سنة';
+    if (a === 1) return 'سنة واحدة';
+    if (a === 2) return 'سنتان';
+    if (a <= 10) return a + ' سنوات';
+    return a + ' سنة';
+  };
+  const childrenLines = (rd) => {
     const ages = (rd.enteredAges && rd.enteredAges.length) ? rd.enteredAges : (rd.childrenAges || []);
+    const beds = rd.enteredBedTypes || rd.childBedTypes || [];
     const count = Math.max(+rd.childrenCount || 0, ages.length);
-    if (!count) return '    - الأطفال: 0';
-    return '    - الأطفال: ' + count + (ages.length ? ' (أعمار: ' + ages.join(', ') + ')' : ' (لم تُحدَّد الأعمار)');
+    if (!count) return ['    - الأطفال: 0'];
+    if (!ages.length) return ['    - الأطفال: ' + count + ' (لم تُحدَّد الأعمار)'];
+    const out = ['    - الأطفال: ' + count];
+    ages.forEach((a, i) => {
+      const bed = BED_LABELS[beds[i]];
+      out.push('        طفل ' + (i + 1) + ': ' + ageText(a) + (bed ? ' — ' + bed : ''));
+    });
+    return out;
   };
   const persons = +$('#pPersons').value;
   const currency = $('#pCurrency').value;
@@ -1885,7 +1904,7 @@ $('#pSubmit').onclick = async () => {
         hotelLines.push('  الغرفة ' + rd.room + ':');
         hotelLines.push('    - نوع الغرفة: ' + typeName);
         if (rd.adults) hotelLines.push('    - البالغين: ' + rd.adults);
-        hotelLines.push(childrenLine(rd));
+        hotelLines.push(...childrenLines(rd));
         if (mealName) hotelLines.push('    - الوجبات: ' + mealName);
         hotelLines.push('    - السعر: بانتظار تأكيد الفندق');
         hotelLines.push('');
@@ -1895,7 +1914,7 @@ $('#pSubmit').onclick = async () => {
         hotelLines.push('  الغرفة ' + rd.room + ':');
         hotelLines.push('    - نوع الغرفة: ' + (rd.roomTypeName || '-'));
         hotelLines.push('    - البالغين: ' + rd.adults);
-        hotelLines.push(childrenLine(rd));
+        hotelLines.push(...childrenLines(rd));
         if (rd.mealPlanName) {
           hotelLines.push('    - الوجبات: ' + rd.mealPlanName);
         }
