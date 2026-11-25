@@ -405,6 +405,47 @@ function removeHotelSegment(id) {
   renderHotelSegments();
   calculate();
 }
+/* ============ أقصى عمر للأطفال ============ */
+const CHILD_MAX_AGE_CACHE = {};
+async function getChildMaxAge(roomTypeId) {
+  if (!roomTypeId) return null;
+  if (roomTypeId in CHILD_MAX_AGE_CACHE) return CHILD_MAX_AGE_CACHE[roomTypeId];
+  try {
+    const r = await api('/api/booking/child-age-limit/' + roomTypeId);
+    CHILD_MAX_AGE_CACHE[roomTypeId] = (r && r.max_age !== null && r.max_age !== undefined) ? +r.max_age : null;
+  } catch (e) {
+    return null; // لا نمنع العميل إذا فشل الاتصال
+  }
+  return CHILD_MAX_AGE_CACHE[roomTypeId];
+}
+function childAgeLimitMessage(maxAge) {
+  return 'أقصى عمر للأطفال في هذا الفندق ' + maxAge + ' سنة. الطفل الأكبر من ذلك يُحسب كشخص بالغ — أضفه في عدد البالغين.';
+}
+function setChildAgeWarning(segId, roomNum, childIdx, maxAge) {
+  const el = document.querySelector('.child-age-warning[data-seg-id="' + segId + '"][data-room="' + roomNum + '"][data-child-idx="' + childIdx + '"]');
+  const input = document.querySelector('.seg-child-age[data-seg-id="' + segId + '"][data-room="' + roomNum + '"][data-child-idx="' + childIdx + '"]');
+  if (maxAge === null) {
+    if (el) { el.style.display = 'none'; el.textContent = ''; }
+    if (input) { input.style.borderColor = ''; input.style.backgroundColor = ''; }
+    return;
+  }
+  if (el) { el.textContent = '⚠️ ' + childAgeLimitMessage(maxAge); el.style.display = 'block'; }
+  if (input) { input.style.borderColor = '#dc2626'; input.style.backgroundColor = '#fef2f2'; }
+}
+// إعادة إظهار التحذيرات بعد إعادة رسم الفنادق
+function refreshChildAgeWarnings() {
+  $$('.seg-child-age').forEach(input => {
+    const { segId, room, childIdx } = input.dataset;
+    const seg = hotelSegments.find(s => s.id === segId);
+    const rtId = seg && seg['room' + room] && seg['room' + room].roomTypeId;
+    const age = +input.value;
+    if (!rtId || input.value === '') return;
+    getChildMaxAge(rtId).then(maxAge => {
+      setChildAgeWarning(segId, room, childIdx, (maxAge !== null && age > maxAge) ? maxAge : null);
+    });
+  });
+}
+
 /* ============ تقويم الوصول والمغادرة (Flatpickr) ============ */
 // إذا لم تُحمَّل المكتبة لأي سبب، يرجع الموقع تلقائياً لحقلي التاريخ القديمين
 function HAS_RANGE_PICKER() {
@@ -522,6 +563,7 @@ function renderHotelSegments() {
           <div class="field" style="margin-top:6px;">
             <label style="font-size:.8rem;"> عمر الطفل ${c + 1}</label>
             <input type="number" class="seg-child-age" data-seg-id="${seg.id}" data-room="${r}" data-child-idx="${c}" min="0" max="17" value="${ageVal}" placeholder="مثال: 5">
+            <div class="child-age-warning" data-seg-id="${seg.id}" data-room="${r}" data-child-idx="${c}" style="display:none;color:#dc2626;font-size:.8rem;font-weight:700;margin-top:4px;line-height:1.5;"></div>
           </div>
           <div class="field seg-child-bed-container" data-seg-id="${seg.id}" data-room="${r}" data-child-idx="${c}" style="margin-top:6px;display:none;">
             <label style="font-size:.8rem;">🛏️ نوع سرير الطفل ${c + 1}</label>
@@ -672,6 +714,16 @@ function renderHotelSegments() {
         console.log('⏭️  No roomTypeId');
         return;
       }
+
+      // ✅ التحقق من أقصى عمر للأطفال في هذا الفندق
+      const maxAge = await getChildMaxAge(roomTypeId);
+      if (maxAge !== null && age > maxAge) {
+        setChildAgeWarning(segId, roomNum, childIdx, maxAge);
+        const bc = document.querySelector('.seg-child-bed-container[data-seg-id="' + segId + '"][data-room="' + roomNum + '"][data-child-idx="' + childIdx + '"]');
+        if (bc) bc.style.display = 'none';
+        return;
+      }
+      setChildAgeWarning(segId, roomNum, childIdx, null);
       
       // ابحث عن bed container
       let bedContainer = document.querySelector('.seg-child-bed-container[data-seg-id="' + segId + '"][data-room="' + roomNum + '"][data-child-idx="' + childIdx + '"]');
@@ -746,6 +798,9 @@ function renderHotelSegments() {
 
   // 📅 تفعيل تقويم الوصول والمغادرة
   initSegPickers();
+
+  // 👶 إظهار تحذيرات أقصى عمر للأطفال (إن وجدت)
+  refreshChildAgeWarnings();
 
   // تحميل خيارات الحجز لكل فندق
   hotelSegments.forEach(seg => {
@@ -1163,6 +1218,20 @@ async function recalcBooking(seg) {
         continue;
       }
 
+      // ✅ أقصى عمر للأطفال في هذا الفندق
+      if (childrenAges.length) {
+        const maxAge = await getChildMaxAge(roomTypeId);
+        if (maxAge !== null && childrenAges.some(a => +a > maxAge)) {
+          roomDetails.push({
+            room: r,
+            waiting_bed_type: true,
+            child_age_exceeded: true,
+            reason: childAgeLimitMessage(maxAge)
+          });
+          continue;
+        }
+      }
+
       // ✅ جلب سياسات الأطفال لهذا النوع
       let childPoliciesExist = false;
       try {
@@ -1257,7 +1326,14 @@ async function recalcBooking(seg) {
           request_message: result.message || null
         });
       } catch (err) {
-        roomDetails.push({ room: r, error: err.error || err.message || 'خطأ' });
+        roomDetails.push({
+          room: r,
+          error: err.error || err.message || 'خطأ',
+          roomTypeId: roomTypeId,
+          adults: adults,
+          childrenAges: childrenAges,
+          mealPlanId: mealPlanId
+        });
       }
     }
 
@@ -1319,6 +1395,10 @@ async function recalcBooking(seg) {
             if (rd.waiting_adults) {
               icon = '👤';
               title = 'الغرفة ' + rd.room + ' — عدد البالغين';
+            }
+            if (rd.child_age_exceeded) {
+              icon = '👶';
+              title = 'الغرفة ' + rd.room + ' — عمر الطفل';
             }
             
             html += '<div style="padding:12px;margin-bottom:8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;">';
@@ -1671,7 +1751,29 @@ function calculate() {
   return { persons, hotelsTotal, servicesTotal, eventsTotal, tourPackagesTotal, total, currency };
 }
 $('#pSubmit').onclick = async () => {
+  // ✅ منع الإرسال إذا كان عمر طفل أكبر من الحد المسموح في الفندق
+  for (const seg of hotelSegments) {
+    const bad = (seg._bookingRooms || []).find(rd => rd.child_age_exceeded);
+    if (bad) {
+      toast(bad.reason, 'err');
+      const el = document.querySelector('.hotel-segment[data-seg-id="' + seg.id + '"]');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+  }
+
   const calc = calculate(); if (!calc) return;
+
+  // اسم نوع الغرفة / الوجبة كما يظهر للعميل (للغرف التي لم يرجع لها سعر)
+  const selectedText = (sel) => {
+    const el = document.querySelector(sel);
+    if (!el || !el.value) return '';
+    return (el.options[el.selectedIndex]?.text || '').trim();
+  };
+  const roomTypeText = (segId, room) => selectedText('.seg-room-type[data-seg-id="' + segId + '"][data-room="' + room + '"]');
+  const mealText = (segId, room) => selectedText('.seg-meal-plan[data-seg-id="' + segId + '"][data-room="' + room + '"]')
+    .replace(/\s*\([^)]*RUB[^)]*\)\s*$/, '');
+  let hasRequestRooms = false;
   const persons = +$('#pPersons').value;
   const currency = $('#pCurrency').value;
 
@@ -1708,11 +1810,20 @@ $('#pSubmit').onclick = async () => {
     roomDetails.forEach(rd => {
       if (rd.skipped) return;
       
-      if (rd.error) {
-        // غرفة بدون أسعار
+      if (rd.error || rd.is_request) {
+        // ✅ غرفة تحتاج تأكيد السعر من الفندق (رسالة الواتساب فقط — المنصة بدون تغيير)
+        // بدون رموز تعبيرية لأنها تظهر "�" في بعض أجهزة الواتساب
+        hasRequestRooms = true;
+        const typeName = rd.roomTypeName || roomTypeText(seg.id, rd.room) || '-';
+        const mealName = rd.mealPlanName || mealText(seg.id, rd.room);
         hotelLines.push('  الغرفة ' + rd.room + ':');
-        hotelLines.push('    - ⚠️ هذا النوع من الغرف يتطلب إرسال طلب للفندق');
-        hotelLines.push('    - يرجى إكمال حساب الباكج ثم إرساله لنا على الواتساب وسوف نخبرك بسعر الغرفة');
+        hotelLines.push('    - نوع الغرفة: ' + typeName);
+        if (rd.adults) hotelLines.push('    - البالغين: ' + rd.adults);
+        if (rd.childrenAges && rd.childrenAges.length) {
+          hotelLines.push('    - الأطفال: ' + rd.childrenAges.length + ' (أعمار: ' + rd.childrenAges.join(', ') + ')');
+        }
+        if (mealName) hotelLines.push('    - الوجبات: ' + mealName);
+        hotelLines.push('    - السعر: بانتظار تأكيد الفندق');
         hotelLines.push('');
       } else {
         // غرفة بها سعر
@@ -1750,7 +1861,11 @@ $('#pSubmit').onclick = async () => {
       count = +countInput.value || 1;
     }
     const unitLabel = unit === 'day' ? 'أيام' : unit === 'tour' ? 'جولات' : unit === 'person' ? 'أفراد' : unit === 'car' ? 'سيارات' : unit === 'from' ? 'يبدأ من' : 'طلب';
-    return { name, price, unit, count, unitLabel, total: price * count };
+    // ✅ تفاصيل الجولة من لوحة التحكم (نوع السيارة يُكتب في الوصف أو الملاحظة)
+    const tour = TOUR_PACKAGES.find(t => String(t.id) === String(card.dataset.id)) || {};
+    const description = (tour.description || '').trim();
+    const note = (tour.note || '').trim();
+    return { name, price, unit, count, unitLabel, description, note, total: price * count };
   });
 
   const selectedEvents = $$('.event-check input[type=checkbox]:checked').map(cb => {
@@ -1794,6 +1909,8 @@ $('#pSubmit').onclick = async () => {
     lines.push('الجولات والتنقلات:');
     selectedTours.forEach(t => {
       lines.push('- ' + t.name + ' (' + t.count + ' ' + (t.unitLabel || '') + ')');
+      if (t.description) lines.push('    التفاصيل: ' + t.description.replace(/\s*\n+\s*/g, ' - '));
+      if (t.note) lines.push('    ملاحظة: ' + t.note);
     });
     lines.push('');
   }
@@ -1824,6 +1941,10 @@ $('#pSubmit').onclick = async () => {
   if (currency && currency !== 'RUB') {
     const conv = convertFromRub(calc.total, currency);
     if (conv !== null) lines.push('ما يعادل: ' + fmtCurrency(conv, currency));
+  }
+  if (hasRequestRooms) {
+    lines.push('');
+    lines.push('ملاحظة: الإجمالي لا يشمل سعر الغرف التي بانتظار تأكيد الفندق. سنتواصل معك بسعرها النهائي فور تأكيد التوفر.');
   }
 
   const message = lines.join('\n');

@@ -1276,6 +1276,20 @@ app.get('/api/booking/child-bed-types/:roomTypeId', (req, res) => {
   }
 });
 
+/* ===== أقصى عمر للأطفال (من سياسة الأطفال الموحّدة للفندق) ===== */
+app.get('/api/booking/child-age-limit/:roomTypeId', (req, res) => {
+  try {
+    const rt = db.prepare('SELECT hotel_id, child_policy_enabled FROM hotel_room_types WHERE id=?').get(req.params.roomTypeId);
+    // لا يوجد نوع غرفة، أو سياسة الأطفال معطّلة لهذا النوع → لا يوجد حد
+    if (!rt || !rt.child_policy_enabled) return ok(res, { max_age: null });
+    const row = db.prepare('SELECT MAX(age_to) AS m FROM hotel_policies WHERE hotel_id=?').get(rt.hotel_id);
+    ok(res, { max_age: row && row.m !== null ? row.m : null });
+  } catch (e) {
+    console.error('child-age-limit error:', e);
+    err(res, 500, 'خطأ');
+  }
+});
+
 /* ===== STATS ===== */
 app.get('/api/admin/stats', (req, res) => ok(res, {
   leads_total:         db.prepare('SELECT COUNT(*) c FROM leads').get().c,

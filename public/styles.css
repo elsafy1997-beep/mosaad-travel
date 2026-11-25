@@ -1134,35 +1134,64 @@ footer{background:#061530;color:#94a3b8;padding:60px 5% 24px}
   font-weight:700;
   color:var(--navy);
 }
-.flatpickr-calendar{
+/* ملاحظة: كل القواعد تبدأ بـ .flatpickr-calendar لتغلب ملف المكتبة الذي يُحمَّل بعد هذا الملف */
+.flatpickr-calendar.flatpickr-calendar{
   font-family:'Cairo',system-ui,sans-serif;
   border-radius:16px;
   box-shadow:var(--shadow-lg);
   border:1px solid var(--border);
 }
-.flatpickr-months .flatpickr-month,
-.flatpickr-current-month .flatpickr-monthDropdown-months{
-  font-family:inherit;
+/* ✅ أسماء الشهور كاملة: مساحة أطول تناسب الخط العربي */
+.flatpickr-calendar .flatpickr-months .flatpickr-month{
+  height:52px;
+  overflow:visible;
+}
+.flatpickr-calendar .flatpickr-current-month{
+  height:52px;
+  padding-top:8px;
+  line-height:1.6;
+  font-size:115%;
   font-weight:700;
 }
-.flatpickr-day.selected,
-.flatpickr-day.startRange,
-.flatpickr-day.endRange,
-.flatpickr-day.selected:hover,
-.flatpickr-day.startRange:hover,
-.flatpickr-day.endRange:hover{
+.flatpickr-calendar .flatpickr-current-month span.cur-month,
+.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-calendar .flatpickr-current-month input.cur-year{
+  font-family:inherit;
+  font-weight:700;
+  line-height:1.6;
+  height:auto;
+}
+.flatpickr-calendar .flatpickr-months .flatpickr-prev-month,
+.flatpickr-calendar .flatpickr-months .flatpickr-next-month{
+  height:52px;
+  padding:16px 10px;
+}
+.flatpickr-calendar span.flatpickr-weekday{
+  font-family:inherit;
+  font-weight:700;
+  color:var(--navy);
+}
+.flatpickr-calendar .flatpickr-day{
+  font-family:inherit;
+}
+.flatpickr-calendar .flatpickr-day.selected,
+.flatpickr-calendar .flatpickr-day.startRange,
+.flatpickr-calendar .flatpickr-day.endRange,
+.flatpickr-calendar .flatpickr-day.selected:hover,
+.flatpickr-calendar .flatpickr-day.startRange:hover,
+.flatpickr-calendar .flatpickr-day.endRange:hover{
   background:var(--navy);
   border-color:var(--navy);
   color:#fff;
 }
-.flatpickr-day.inRange,
-.flatpickr-day.inRange:hover{
+.flatpickr-calendar .flatpickr-day.inRange,
+.flatpickr-calendar .flatpickr-day.inRange:hover{
   background:#fff4d1;
   border-color:#fff4d1;
   box-shadow:-5px 0 0 #fff4d1,5px 0 0 #fff4d1;
   color:var(--navy);
 }
-.flatpickr-day.today{
+.flatpickr-calendar .flatpickr-day.today{
   border-color:var(--gold);
 }
 .seg-dates-hint{
