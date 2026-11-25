@@ -50,6 +50,18 @@ if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
   app.use('/uploads', express.static(path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'uploads')));
 }
 
+// ✅ توليد رقم فريد (طلب / جدول) من رقم الصف نفسه بدل COUNT+1
+// COUNT+1 كان يكرر رقماً موجوداً بعد حذف أي طلب، فيفشل الحفظ ولا يُفتح الواتساب للعميل
+function assignUniqueCode(table, prefix, id) {
+  let code = prefix + String(id).padStart(4, '0');
+  const exists = db.prepare(`SELECT 1 FROM ${table} WHERE code=? AND id<>?`);
+  while (exists.get(code, id)) {
+    code = prefix + String(id).padStart(4, '0') + '-' + Math.random().toString(36).slice(2, 5).toUpperCase();
+  }
+  db.prepare(`UPDATE ${table} SET code=? WHERE id=?`).run(code, id);
+  return code;
+}
+
 const ok = (res, data) => res.json(data);
 const err = (res, code, msg) => res.status(code).json({ error: msg });
 
@@ -110,17 +122,16 @@ app.post('/api/leads', (req, res) => {
   try {
     const d = req.body || {};
     if (!d.name) return err(res, 400, 'الاسم مطلوب');
-    const count = db.prepare('SELECT COUNT(*) c FROM leads').get().c + 1;
-    const code = 'MOSAAD-' + String(count).padStart(4, '0');
     const info = db.prepare(
       `INSERT INTO leads (code,name,country,phone,whatsapp,persons,arrival,departure,city,hotel_id,services,estimated_rub,currency,notes)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
-      code, d.name, d.country || '', d.phone || '', d.whatsapp || d.phone || '',
+      null, d.name, d.country || '', d.phone || '', d.whatsapp || d.phone || '',
       d.persons || 1, d.arrival || '', d.departure || '', d.city || '',
       d.hotel_id || null, JSON.stringify(d.services || []),
       d.estimated_rub || 0, d.currency || 'RUB', d.notes || ''
     );
+    const code = assignUniqueCode('leads', 'MOSAAD-', info.lastInsertRowid);
     ok(res, { ok: true, code, id: info.lastInsertRowid });
   } catch (e) {
     console.error(e);
@@ -157,18 +168,16 @@ app.post('/api/trip-plans', (req, res) => {
     if (!Array.isArray(d.activities) || !d.activities.length)
       return err(res, 400, 'يجب إضافة نشاط واحد على الأقل');
 
-    const count = db.prepare('SELECT COUNT(*) c FROM trip_plans').get().c + 1;
-    const code = 'TRIP-' + String(count).padStart(4, '0');
-
     const planInfo = db.prepare(`
       INSERT INTO trip_plans (code, client_name, client_whatsapp, country, persons, start_date, end_date, notes)
       VALUES (?,?,?,?,?,?,?,?)
     `).run(
-      code, d.client_name, d.client_whatsapp || '', d.country || '',
+      null, d.client_name, d.client_whatsapp || '', d.country || '',
       d.persons || 1, d.start_date || null, d.end_date || null, d.notes || ''
     );
 
     const planId = planInfo.lastInsertRowid;
+    const code = assignUniqueCode('trip_plans', 'TRIP-', planId);
     const insertAct = db.prepare(`
       INSERT INTO trip_activities (plan_id, day_number, day_date, time_slot, title, description, location)
       VALUES (?,?,?,?,?,?,?)
@@ -949,6 +958,7 @@ app.post('/api/booking/create', (req, res) => {
       date_to: d.date_to,
       adults: +d.adults,
       children_ages: d.children_ages || [],
+      child_bed_types: d.child_bed_types || [],
       meal_plan_id: d.meal_plan_id ? +d.meal_plan_id : null
     });
 

@@ -1,4 +1,5 @@
-const CACHE_NAME = 'mosaad-v1';
+// ⚠️ غيّر الرقم مع كل تحديث كبير لإجبار المتصفحات على حذف النسخة القديمة
+const CACHE_NAME = 'mosaad-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -23,23 +24,26 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
+// ✅ الشبكة أولاً: الزائر يحصل دائماً على أحدث نسخة،
+// والنسخة المحفوظة تُستخدم فقط إذا لم يكن هناك إنترنت
 self.addEventListener('fetch', (e) => {
   const { request } = e;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-
   if (url.pathname.startsWith('/api/')) return;
 
   e.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((res) => {
-        if (!res || res.status !== 200 || res.type === 'opaque') return res;
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+    fetch(request)
+      .then((res) => {
+        if (res && res.status === 200 && res.type !== 'opaque') {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
         return res;
-      }).catch(() => caches.match('/index.html'));
-    })
+      })
+      .catch(() =>
+        caches.match(request).then((cached) => cached || caches.match('/index.html'))
+      )
   );
 });

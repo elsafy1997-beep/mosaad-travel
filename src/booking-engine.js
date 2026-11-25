@@ -342,9 +342,10 @@ export function calculateBooking(params) {
   let baseBedIndex = 0;
   let extraBedIndex = 0;
 
-  children_ages.forEach((age) => {
+  children_ages.forEach((age, childIdx) => {
     // ✅ تحديد نوع السرير: إما من اختيار العميل، أو تلقائياً
-    let bedType = child_bed_types[children_ages.indexOf(age)] || null;
+    // (نستخدم ترتيب الطفل وليس عمره — طفلان بنفس العمر كانا يأخذان نفس نوع السرير)
+    let bedType = child_bed_types[childIdx] || null;
     if (!bedType) {
       if (baseBedIndex < baseBedSlots) {
         bedType = 'base';

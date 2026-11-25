@@ -1,6 +1,8 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const fmt = n => Number(n || 0).toLocaleString('ar-EG') + ' ₽';
+// ✅ تنقية النصوص القادمة من العملاء قبل عرضها (حماية من حقن الأكواد)
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 function toast(msg, type = '') {
   const t = $('#toast'); t.textContent = msg;
   t.className = 'toast show ' + type;
@@ -48,8 +50,8 @@ async function loadView(view) {
 }
 async function renderDashboard() {
   const s = await api('/api/admin/stats');
-  const cities = (s.by_city || []).map(c => `<li>${c.city}: <strong>${c.c}</strong></li>`).join('') || '<li>—</li>';
-  const recent = (s.recent_leads || []).map(l => `<tr><td>${l.code}</td><td>${l.name}</td><td>${l.city}</td><td>${fmt(l.estimated_rub)}</td><td><span class="pill ${l.status}">${statusLabel(l.status)}</span></td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--gray)">لا توجد طلبات بعد</td></tr>';
+  const cities = (s.by_city || []).map(c => `<li>${esc(c.city)}: <strong>${c.c}</strong></li>`).join('') || '<li>—</li>';
+  const recent = (s.recent_leads || []).map(l => `<tr><td>${esc(l.code)}</td><td>${esc(l.name)}</td><td>${esc(l.city)}</td><td>${fmt(l.estimated_rub)}</td><td><span class="pill ${esc(l.status)}">${esc(statusLabel(l.status))}</span></td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--gray)">لا توجد طلبات بعد</td></tr>';
   $('#viewContent').innerHTML = `
     <div class="stats">
       <div class="stat"><div class="label">إجمالي الطلبات</div><div class="value">${s.leads_total}</div></div>
@@ -1265,7 +1267,7 @@ async function renderLeads() {
     </tr></thead>
     <tbody>${rows.length ? rows.map(r => `<tr>
       <td><input type="checkbox" class="lead-checkbox" value="${r.id}" style="width:18px;height:18px;accent-color:var(--gold);"></td>
-      <td>${r.id}</td><td>${r.code}</td><td>${r.name}</td><td>${r.whatsapp || r.phone}</td><td>${r.city || '—'}</td><td>${fmt(r.estimated_rub)}</td>
+      <td>${r.id}</td><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.whatsapp || r.phone)}</td><td>${esc(r.city || '—')}</td><td>${fmt(r.estimated_rub)}</td>
       <td><select data-status="${r.id}" style="padding:5px 8px;border-radius:8px;border:1px solid var(--border);font-family:inherit">${['new','contacted','interested','quote','pending','booked','done','cancelled'].map(s => `<option value="${s}" ${r.status === s ? 'selected' : ''}>${statusLabel(s)}</option>`).join('')}</select></td>
       <td class="row-actions"><a class="icon-btn" target="_blank" href="https://wa.me/${(r.whatsapp || r.phone || '').replace(/\D/g, '')}">واتساب</a><button class="icon-btn" data-view="${r.id}">تفاصيل</button><button class="icon-btn del" data-del="${r.id}">حذف</button></td>
     </tr>`).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:30px">لا توجد طلبات بعد</td></tr>`}</tbody></table>`;
@@ -1344,25 +1346,26 @@ async function renderLeads() {
     await api('/api/admin/leads/' + b.dataset.del, { method: 'DELETE' });
     toast('تم الحذف', 'ok'); renderLeads();
   });
-  $$('[data-view]').forEach(b => b.onclick = async () => {
+  // ✅ داخل جدول الطلبات فقط — كان يلتقط روابط القائمة الجانبية أيضاً فتتعطل التنقلات
+  $$('#viewContent [data-view]').forEach(b => b.onclick = async () => {
     const l = await api('/api/admin/leads/' + b.dataset.view);
     const services = JSON.parse(l.services || '[]');
-    $('#modalContent').innerHTML = `<h2>طلب ${l.code}</h2>
+    $('#modalContent').innerHTML = `<h2>طلب ${esc(l.code)}</h2>
       <div style="display:grid;gap:8px;font-size:.92rem">
-        <div><strong>الاسم:</strong> ${l.name}</div>
-        <div><strong>الدولة:</strong> ${l.country || '—'}</div>
-        <div><strong>الهاتف:</strong> ${l.phone || '—'}</div>
-        <div><strong>WhatsApp:</strong> ${l.whatsapp || '—'}</div>
-        <div><strong>عدد الأشخاص:</strong> ${l.persons}</div>
-        <div><strong>الوصول:</strong> ${l.arrival || '—'}</div>
-        <div><strong>المغادرة:</strong> ${l.departure || '—'}</div>
-        <div><strong>المدينة:</strong> ${l.city || '—'}</div>
+        <div><strong>الاسم:</strong> ${esc(l.name)}</div>
+        <div><strong>الدولة:</strong> ${esc(l.country || '—')}</div>
+        <div><strong>الهاتف:</strong> ${esc(l.phone || '—')}</div>
+        <div><strong>WhatsApp:</strong> ${esc(l.whatsapp || '—')}</div>
+        <div><strong>عدد الأشخاص:</strong> ${esc(l.persons)}</div>
+        <div><strong>الوصول:</strong> ${esc(l.arrival || '—')}</div>
+        <div><strong>المغادرة:</strong> ${esc(l.departure || '—')}</div>
+        <div><strong>المدينة:</strong> ${esc(l.city || '—')}</div>
         <div><strong>القيمة التقديرية:</strong> ${fmt(l.estimated_rub)}</div>
-        <div><strong>العملة:</strong> ${l.currency || 'RUB'}</div>
+        <div><strong>العملة:</strong> ${esc(l.currency || 'RUB')}</div>
         <div><strong>الحالة:</strong> ${statusLabel(l.status)}</div>
-        <div><strong>الخدمات:</strong> ${services.length ? services.map(s => '• ' + s.name).join('<br>') : '—'}</div>
-        <div><strong>ملاحظات:</strong> ${l.notes || '—'}</div>
-        <div><strong>التاريخ:</strong> ${l.created_at}</div>
+        <div><strong>الخدمات:</strong> ${services.length ? services.map(s => '• ' + esc(s.name)).join('<br>') : '—'}</div>
+        <div><strong>ملاحظات:</strong> ${esc(l.notes || '—')}</div>
+        <div><strong>التاريخ:</strong> ${esc(l.created_at)}</div>
       </div>
       <div class="modal-actions"><button class="icon-btn" onclick="document.getElementById('modalBg').classList.remove('show')">إغلاق</button></div>`;
     $('#modalBg').classList.add('show');
@@ -1540,15 +1543,15 @@ async function renderTripsAdmin() {
         <th>الحالة</th><th>إجراءات</th>
       </tr></thead>
       <tbody>${trips.length ? trips.map(t => {
-        const dates = (t.start_date || '—') + ' → ' + (t.end_date || '—');
+        const dates = esc(t.start_date || '—') + ' → ' + esc(t.end_date || '—');
         return '<tr>' +
           '<td><input type="checkbox" class="trip-checkbox" value="' + t.id + '" style="width:18px;height:18px;accent-color:var(--gold);"></td>' +
           '<td>' + t.id + '</td>' +
-          '<td>' + (t.code || '') + '</td>' +
-          '<td>' + t.client_name + '</td>' +
-          '<td>' + (t.client_whatsapp || '—') + '</td>' +
+          '<td>' + esc(t.code || '') + '</td>' +
+          '<td>' + esc(t.client_name) + '</td>' +
+          '<td>' + esc(t.client_whatsapp || '—') + '</td>' +
           '<td style="font-size:.8rem;color:var(--gray);">' + dates + '</td>' +
-          '<td>' + t.persons + '</td>' +
+          '<td>' + esc(t.persons) + '</td>' +
           '<td>' + t.activities_count + '</td>' +
           '<td><span class="pill ' + (t.status === 'new' ? 'new' : 'booked') + '">' + statusLabel(t.status) + '</span></td>' +
           '<td class="row-actions">' +
@@ -1645,23 +1648,23 @@ async function renderTripsAdmin() {
       daysHtml += '<h4 style="color:var(--navy);margin-bottom:10px;">اليوم ' + dayNum + '</h4>';
       byDay[dayNum].forEach(a => {
         daysHtml += '<div style="padding:8px 12px;background:#fff;border-radius:8px;margin-bottom:6px;font-size:.9rem;">';
-        daysHtml += '<strong>' + (a.time_slot || '') + '</strong> - ' + (a.title || a.description);
-        if (a.location) daysHtml += ' <span style="color:var(--gray);">' + a.location + '</span>';
-        if (a.description && a.title) daysHtml += '<br><span style="font-size:.85rem;color:var(--gray);">' + a.description + '</span>';
+        daysHtml += '<strong>' + esc(a.time_slot || '') + '</strong> - ' + esc(a.title || a.description);
+        if (a.location) daysHtml += ' <span style="color:var(--gray);">' + esc(a.location) + '</span>';
+        if (a.description && a.title) daysHtml += '<br><span style="font-size:.85rem;color:var(--gray);">' + esc(a.description) + '</span>';
         daysHtml += '</div>';
       });
       daysHtml += '</div>';
     });
     $('#modalContent').innerHTML =
-      '<h2>جدول: ' + plan.code + '</h2>' +
+      '<h2>جدول: ' + esc(plan.code) + '</h2>' +
       '<div style="display:grid;gap:8px;font-size:.92rem;margin-bottom:16px;">' +
-        '<div><strong>الاسم:</strong> ' + plan.client_name + '</div>' +
-        '<div><strong>WhatsApp:</strong> ' + (plan.client_whatsapp || '—') + '</div>' +
-        '<div><strong>الدولة:</strong> ' + (plan.country || '—') + '</div>' +
-        '<div><strong>عدد الأشخاص:</strong> ' + plan.persons + '</div>' +
-        '<div><strong>الفترة:</strong> ' + (plan.start_date || '—') + ' → ' + (plan.end_date || '—') + '</div>' +
-        '<div><strong>التاريخ:</strong> ' + plan.created_at + '</div>' +
-        (plan.notes ? '<div><strong>ملاحظات:</strong> ' + plan.notes + '</div>' : '') +
+        '<div><strong>الاسم:</strong> ' + esc(plan.client_name) + '</div>' +
+        '<div><strong>WhatsApp:</strong> ' + esc(plan.client_whatsapp || '—') + '</div>' +
+        '<div><strong>الدولة:</strong> ' + esc(plan.country || '—') + '</div>' +
+        '<div><strong>عدد الأشخاص:</strong> ' + esc(plan.persons) + '</div>' +
+        '<div><strong>الفترة:</strong> ' + esc(plan.start_date || '—') + ' → ' + esc(plan.end_date || '—') + '</div>' +
+        '<div><strong>التاريخ:</strong> ' + esc(plan.created_at) + '</div>' +
+        (plan.notes ? '<div><strong>ملاحظات:</strong> ' + esc(plan.notes) + '</div>' : '') +
       '</div>' +
       '<h3 style="margin-bottom:12px;">الأنشطة:</h3>' +
       daysHtml +

@@ -405,9 +405,90 @@ function removeHotelSegment(id) {
   renderHotelSegments();
   calculate();
 }
+/* ============ تقويم الوصول والمغادرة (Flatpickr) ============ */
+// إذا لم تُحمَّل المكتبة لأي سبب، يرجع الموقع تلقائياً لحقلي التاريخ القديمين
+function HAS_RANGE_PICKER() {
+  return typeof window.flatpickr === 'function';
+}
+
+// ✅ تحويل التاريخ إلى YYYY-MM-DD بالتوقيت المحلي (وليس UTC)
+// toISOString() كانت تُرجع اليوم السابق لعملاء روسيا ومصر
+function toLocalYMD(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+function nightsLabel(from, to) {
+  const n = Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000);
+  if (n <= 0) return '';
+  const nightsTxt = n === 1 ? 'ليلة واحدة' : n === 2 ? 'ليلتان' : (n <= 10 ? n + ' ليالٍ' : n + ' ليلة');
+  return '🌙 ' + nightsTxt;
+}
+
+let segPickers = [];
+function destroySegPickers() {
+  segPickers.forEach(p => { try { p.destroy(); } catch (e) {} });
+  segPickers = [];
+}
+
+function initSegPickers() {
+  if (!HAS_RANGE_PICKER()) return;
+  const isSmall = window.innerWidth < 700;
+  $$('.seg-dates').forEach(input => {
+    const segId = input.dataset.segId;
+    const seg = hotelSegments.find(s => s.id === segId);
+    if (!seg) return;
+
+    const picker = flatpickr(input, {
+      mode: 'range',
+      locale: (flatpickr.l10ns && flatpickr.l10ns.ar) ? 'ar' : 'default',
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'j F Y',
+      minDate: 'today',
+      showMonths: isSmall ? 1 : 2,
+      disableMobile: true,
+      position: 'auto center',
+      defaultDate: (seg.arrival && seg.departure) ? [seg.arrival, seg.departure] : null,
+      onClose: (selectedDates, _str, instance) => {
+        if (selectedDates.length !== 2) {
+          // اختار يوماً واحداً فقط وأغلق التقويم → أرجع التواريخ السابقة
+          instance.setDate((seg.arrival && seg.departure) ? [seg.arrival, seg.departure] : [], false);
+          return;
+        }
+        const from = toLocalYMD(selectedDates[0]);
+        const to = toLocalYMD(selectedDates[1]);
+        if (from === to) {
+          toast('اختر يوم مغادرة بعد يوم الوصول', 'err');
+          return;
+        }
+        if (from === seg.arrival && to === seg.departure) return;
+        // ⏱️ ننتظر حتى يُغلق التقويم تماماً قبل إعادة رسم الفنادق
+        setTimeout(() => setSegmentDates(segId, from, to), 0);
+      }
+    });
+    segPickers.push(picker);
+  });
+}
+
+// ✅ تعيين التاريخين معاً ثم تمرير التحديث بنفس منطق الحقول القديمة
+function setSegmentDates(segId, from, to) {
+  const seg = hotelSegments.find(s => s.id === segId);
+  if (!seg) return;
+  seg.arrival = from;
+  updateSegment(segId, 'departure', to); // يتحقق من المدينة/الفندق/التاريخ ويعيد الحساب
+  // إذا لم تكتمل المدينة بعد، updateSegment لا يعيد الرسم — حدّث النص يدوياً
+  const hint = document.querySelector('.seg-dates-hint[data-seg-id="' + segId + '"]');
+  if (hint) hint.textContent = nightsLabel(from, to);
+  if (seg.hotelId) loadHotelBookingOptions(seg);
+}
+
 function renderHotelSegments() {
   const container = document.getElementById('hotelsList');
   if (!container) return;
+  destroySegPickers();
   if (!hotelSegments.length) {
     container.innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px;background:#fff;border-radius:12px;border:2px dashed var(--border);">اضغط "إضافة فندق جديد" لبدء إضافة فنادق رحلتك</p>';
     return;
@@ -496,6 +577,12 @@ function renderHotelSegments() {
             ${cityOptions}
           </select>
         </div>
+        ${HAS_RANGE_PICKER() ? `
+        <div class="field full">
+          <label>تاريخ الوصول والمغادرة لهذا الفندق</label>
+          <input type="text" class="seg-dates" data-seg-id="${seg.id}" placeholder="اضغط لاختيار تاريخ الوصول ثم المغادرة" readonly>
+          <small class="seg-dates-hint" data-seg-id="${seg.id}" style="color:var(--gray);font-size:.8rem;">${seg.arrival && seg.departure ? nightsLabel(seg.arrival, seg.departure) : 'اختر يوم الوصول ثم يوم المغادرة من التقويم'}</small>
+        </div>` : `
         <div class="field">
           <label>تاريخ الوصول</label>
           <input type="date" class="seg-arrival" data-seg-id="${seg.id}" value="${seg.arrival}">
@@ -503,7 +590,7 @@ function renderHotelSegments() {
         <div class="field">
           <label>تاريخ المغادرة</label>
           <input type="date" class="seg-departure" data-seg-id="${seg.id}" value="${seg.departure}">
-        </div>
+        </div>`}
         <div class="field full">
           <label>الفندق</label>
           <select class="seg-hotel" data-seg-id="${seg.id}" ${(!seg.city || !seg.arrival || !seg.departure) ? 'disabled' : ''}>
@@ -656,6 +743,9 @@ function renderHotelSegments() {
     setTimeout(() => updateNightsDisplay(seg.id), 50);
     setTimeout(() => updateNightsDisplay(seg.id), 150);
   });
+
+  // 📅 تفعيل تقويم الوصول والمغادرة
+  initSegPickers();
 
   // تحميل خيارات الحجز لكل فندق
   hotelSegments.forEach(seg => {
@@ -1157,6 +1247,7 @@ async function recalcBooking(seg) {
           roomTypeName: result.room_type_name,
           adults: adults,
           childrenAges: childrenAges,
+          childBedTypes: childBedTypes,
           mealPlanId: mealPlanId,
           mealPlanName: result.meal_plan ? result.meal_plan.name : null,
           nights: result.nights,
@@ -1425,7 +1516,7 @@ function validateChildrenLimits() {
     if (val > maxChildren) {
       errors.push({
         input: childInput,
-        message: `الغرفة ${+roomIdx + 1} — نوع "${roomTypeName}" يستوعب ${maxChildren} أطفال فقط، وأنت أدخلت ${val}`
+        message: `الغرفة ${roomIdx} — نوع "${roomTypeName}" يستوعب ${maxChildren} أطفال فقط، وأنت أدخلت ${val}`
       });
     }
   });
@@ -1770,6 +1861,7 @@ $('#pSubmit').onclick = async () => {
                 rooms_count: 1,
                 adults: rd.adults,
                 children_ages: rd.childrenAges || [],
+                child_bed_types: rd.childBedTypes || [],
                 customer_name: 'عميل من Trip Planner',
                 customer_phone: '-',
                 customer_notes: 'غرفة رقم ' + rd.room + ' من فندق رقم ' + (hotelSegments.indexOf(seg) + 1),
